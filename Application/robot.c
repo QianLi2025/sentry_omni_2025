@@ -14,11 +14,14 @@
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
 #include "chassis.h"
+#include "New_chassis.h"
 #endif
 
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
 #include "gimbal.h"
+#include "New_gimbal.h"
 #include "shoot.h"
+#include "New_shoot.h"
 #include "robot_cmd.h"
 #endif
 /**
@@ -35,16 +38,17 @@ void RobotInit(void)
     BSPInit();
     // 应用层初始化
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-    RobotCMDInit();
-    GimbalInit();
-    ShootInit();
+    //RobotCMDInit();
+    //GimbalInit();
+    //ShootInit();
+   
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisInit();
 #endif
     // 测试代码
-    // TESTInit();
+     //TESTInit();
 
     // rtos创建任务
     OSTaskInit();
@@ -59,9 +63,10 @@ void RobotInit(void)
 void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-    RobotCMDTask();
-    GimbalTask();
-    ShootTask();
+//TESTTask();
+  //  RobotCMDTask();
+   // GimbalTask();
+   // ShootTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)

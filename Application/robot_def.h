@@ -323,6 +323,7 @@ typedef struct
     uint16_t shoot_limit; // 枪口热量上限
     float bullet_speed;   // 裁判系统弹速
     Self_Color_e self_color;
+    uint16_t yaw_motor_single_round_angle;
     // Gimbal_Ctrl_Cmd_s gimbal_ctrl_cmd;
     // Shoot_Ctrl_Cmd_s shoot_ctrl_cmd;
     // Bullet_Speed_e bullet_speed; // 弹速限制
@@ -349,7 +350,7 @@ typedef struct
 typedef struct
 {
     attitude_t gimbal_imu_data;
-    uint16_t yaw_motor_single_round_angle;
+    
 } Gimbal_Upload_Data_s;
 
 #pragma pack() // 取消压缩
