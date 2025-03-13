@@ -8,6 +8,7 @@
 #include "New_gimbal.h"
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static DJIMotor_Instance *yaw_motor;
+static float yaw_motor_single_round_angle;
 static LKMotor_Measure_t  *pitch_motor;
 static Publisher_t *gimbal_pub;                   // 云台应用消息发布者(云台反馈给cmd)
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
@@ -56,6 +57,7 @@ void YawInit (){
         yaw_motor   = DJIMotorInit(&yaw_config);
         gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
         gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
+
 }
 void PitchInit(){
     Motor_Init_Config_s pitch_config = {
@@ -104,6 +106,7 @@ void PitchInit(){
     pitch_motor = LKMotorInit(&pitch_config);
     gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
     gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
+    yaw_motor_single_round_angle = PubRegister("yaw_motor_single_round_angle", sizeof(float));
 }
 void YawTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
@@ -155,8 +158,9 @@ void YawTask(){
     //gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     // 推送消息
     //PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
-    chassis_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
-    CANCommSend(chasiss_can_comm, (void *)&chassis_feedback_data);
+    //chassis_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
+    //CANCommSend(chasiss_can_comm, (void *)&chassis_feedback_data);
+    PubPushMessage(yaw_motor_single_round_angle, (void *)&yaw_motor->measure.angle_single_round);
 }
 void PitchTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
@@ -183,7 +187,7 @@ void PitchTask(){
             break;
 }
     gimbal_feedback_data.gimbal_imu_data              = *gimba_IMU_data;
-    gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
+    //gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     // 推送消息
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
 }

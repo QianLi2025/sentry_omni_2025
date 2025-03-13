@@ -143,9 +143,10 @@ void GimbalCMDTask(void){
     roll         = gimbal_fetch_data.gimbal_imu_data.Pitch;
     bullet_speed = chassis_fetch_data.bullet_speed;
     yaw_speed    = gimbal_fetch_data.gimbal_imu_data.Gyro[2];
-
+    
     VisionSetDetectColor(chassis_fetch_data.self_color);
     VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
+    UARTCommSend(cmd_uart_comm, (void *)&chassis_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void *)&shoot_cmd_send);
     PubPushMessage(gimbal_cmd_pub, (void *)&gimbal_cmd_send);
 
