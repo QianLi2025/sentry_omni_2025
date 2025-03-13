@@ -97,6 +97,7 @@ typedef enum {
     GIMBAL_ZERO_FORCE = 0, // 电流零输入
     GIMBAL_FREE_MODE,      // 云台自由运动模式,即与底盘分离(底盘此时应为NO_FOLLOW)反馈值为电机total_angle;似乎可以改为全部用IMU数据?
     GIMBAL_GYRO_MODE,      // 云台陀螺仪反馈模式,反馈值为陀螺仪pitch,total_yaw_angle,底盘可以为小陀螺和跟随模式
+    GIMBAL_CRUISE_MODE,// 云台巡航模式
 } gimbal_mode_e;
 
 // 发射模式设置
@@ -326,6 +327,7 @@ typedef struct
     float bullet_speed;   // 裁判系统弹速
     Self_Color_e self_color;
     float yaw_motor_single_round_angle;
+    float 
     // Gimbal_Ctrl_Cmd_s gimbal_ctrl_cmd;
     // Shoot_Ctrl_Cmd_s shoot_ctrl_cmd;
     // Bullet_Speed_e bullet_speed; // 弹速限制
