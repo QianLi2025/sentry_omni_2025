@@ -226,6 +226,8 @@ typedef struct
     float offset_angle; // 底盘和归中位置的夹角
     chassis_mode_e chassis_mode;
     super_cap_mode_e super_cap_mode;
+    Shoot_Ctrl_Cmd_s Loader_Ctrl_Cmd;// 拨弹盘指令
+    Gimbal_Ctrl_Cmd_s Yaw_Ctrl_Cmd;//控制yaw电机的指令
     // UI部分
     ui_mode_e ui_mode;                   //  UI状态
     friction_mode_e friction_mode;       //  摩擦轮状态
@@ -323,7 +325,7 @@ typedef struct
     uint16_t shoot_limit; // 枪口热量上限
     float bullet_speed;   // 裁判系统弹速
     Self_Color_e self_color;
-    uint16_t yaw_motor_single_round_angle;
+    float yaw_motor_single_round_angle;
     // Gimbal_Ctrl_Cmd_s gimbal_ctrl_cmd;
     // Shoot_Ctrl_Cmd_s shoot_ctrl_cmd;
     // Bullet_Speed_e bullet_speed; // 弹速限制

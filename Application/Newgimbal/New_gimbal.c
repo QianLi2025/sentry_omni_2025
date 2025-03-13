@@ -55,7 +55,7 @@ void YawInit (){
         },
         .motor_type = GM6020};
         yaw_motor   = DJIMotorInit(&yaw_config);
-        gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
+        //gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
         gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
 
 }
@@ -144,7 +144,7 @@ void YawTask(){
             DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[2]);
             DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             break;
-        // 云台自由模式,使用编码器反馈,底盘和云台分离,仅云台旋转,一般用于调整云台姿态(英雄吊射等)/能量机关
+        // 巡航模式
         default:
             break;
     }
