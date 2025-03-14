@@ -6,6 +6,8 @@
 #include "message_center.h"
 #include "general_def.h"
 #include "New_gimbal.h"
+#include <stdio.h>
+#include <math.h>
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static DJIMotor_Instance *yaw_motor;
 static float yaw_motor_single_round_angle;
@@ -14,6 +16,9 @@ static Publisher_t *gimbal_pub;                   // 云台应用消息发布者
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
 static Gimbal_Upload_Data_s gimbal_feedback_data; // 回传给cmd的云台状态信息
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_recv;         // 来自cmd的控制信息
+static float pitch_cd_ms;
+static int pitch_timer =0;
+
 void YawInit (){
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
@@ -149,6 +154,21 @@ void YawTask(){
             DJIMotorEnable(yaw_motor);
             DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->YawTotalAngle);
             DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[2]);
+            pitch_cd_ms= DWT_GetTimeline_ms();
+            pitch_cd_ms /= 1000;
+            int pitch_timer = (int)round(pitch_cd_ms);
+            pitch_timer%=2;
+            if(pitch_timer==0){
+                DJIMotorSetRef(yaw_motor, -10);
+                
+            }
+            if (pitch_timer==1)
+            {
+                DJIMotorSetRef(yaw_motor, 10);
+            }
+            
+            
+            
         default:
             break;
     }
@@ -179,14 +199,18 @@ void PitchTask(){
         // 使用陀螺仪的反馈,底盘根据yaw电机的offset跟随云台或视觉模式采用
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             LKMotorEnable(pitch_motor);
-            LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Roll);
+            LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
             LKMotorChangeFeed(pitch_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[1]);
              // yaw和pitch会在robot_cmd中处理好多圈和单圈
             LKMotorSetRef(pitch_motor, gimbal_cmd_recv.pitch);
             break;
-        // 云台自由模式,使用编码器反馈,底盘和云台分离,仅云台旋转,一般用于调整云台姿态(英雄吊射等)/能量机关
-        case GIMBAL_FREE_MODE: // 后续删除,或加入云台追地盘的跟随模式(响应速度更快)
-          break;
+        // 巡航模式
+        case GIMBAL_CRUISE_MODE:
+            LKMotorEnable(pitch_motor);
+            LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
+            pitch_high_time=DWT_GetTimeline_ms();
+
+
         default:
             break;
 }
