@@ -160,9 +160,6 @@ void YawTask(){
             DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->YawTotalAngle);
             DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[2]);
             DJIMotorSetRef(yaw_motor, 1);
-           
-            
-            
         default:
             break;
     }
@@ -178,8 +175,8 @@ void YawTask(){
     //PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
     //chassis_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     //CANCommSend(chasiss_can_comm, (void *)&chassis_feedback_data);
-
-    PubPushMessage(gimbal_pub, (void *)&yaw_motor->measure.angle_single_round);
+    gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
+    PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
 }
 void PitchTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
@@ -222,7 +219,7 @@ void PitchTask(){
             break;
 }
     gimbal_feedback_data.gimbal_imu_data              = *gimba_IMU_data;
-    //gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
+    //
     // 推送消息
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
 }
