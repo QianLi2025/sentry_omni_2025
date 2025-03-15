@@ -357,7 +357,7 @@ void ChassisCMDSend(void)
     //TODO:robot_fetch_data 待赋值
 
     //chassis_comm_send.Shoot_fetch_data = &shoot_fetch_data;
-    UARTCommSend(chassis_uart_comm,(void*)&chassis_comm_send);
+    UARTCommSend(chassis_uart_comm,(uint8_t*)&chassis_comm_send);
 }
 void ChassisCMDTask(void)
 {
