@@ -161,6 +161,8 @@ static void SendProcess(Vision_Send_s *send, uint8_t *tx_buff)
 /**
  * @brief 用于注册一个视觉接收数据结构体,返回一个视觉接收数据结构体指针
  *
+ * 
+ * 
  * @param recv_config
  * @return Vision_Recv_s*
  */

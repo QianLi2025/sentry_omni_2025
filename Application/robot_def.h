@@ -18,8 +18,8 @@
 
 /* 开发板类型定义,烧录时注意不要弄错对应功能;修改定义后需要重新编译,只能存在一个定义! */
 // #define ONE_BOARD // ! 单板控制整车，beta选项，建议别选上
-// #define CHASSIS_BOARD // 底盘板
-#define GIMBAL_BOARD // 云台板
+ #define CHASSIS_BOARD // 底盘板
+//#define GIMBAL_BOARD // 云台板
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
 // 底盘参数
@@ -227,18 +227,8 @@ typedef struct
     float offset_angle; // 底盘和归中位置的夹角
     chassis_mode_e chassis_mode;
     super_cap_mode_e super_cap_mode;
-    Shoot_Ctrl_Cmd_s Loader_Ctrl_Cmd;// 拨弹盘指令
-    Gimbal_Ctrl_Cmd_s Yaw_Ctrl_Cmd;//控制yaw电机的指令
-    // UI部分
-    ui_mode_e ui_mode;                   //  UI状态
-    friction_mode_e friction_mode;       //  摩擦轮状态
-    loader_mode_e loader_mode;           //  射频状态
-    vision_mode_e vision_mode;           //  视觉状态
-    vision_lock_mode_e vision_lock_mode; // 视觉锁定的目标状态
-    vision_is_shoot_e vision_is_shoot;   // 是否使用视觉is_shooting参数
-    lid_mode_e lid_mode;                 //  弹舱盖状态
-    //  ...
-
+    uint16_t chassis_power_buff;
+    uint16_t chassis_power_limit;
 } Chassis_Ctrl_Cmd_s;
 
 // cmd发布的机械臂控制数据,由arm订阅
@@ -302,6 +292,7 @@ typedef struct
     float shoot_rate; // 连续发射的射频,unit per s,发/秒
     float dead_time;  // 发射冷却时间, 目前仅单发使用
     attack_mode_e attack_mode;
+    uint8_t is_tracking;
 } Shoot_Ctrl_Cmd_s;
 
 /* ----------------gimbal/shoot/chassis发布的反馈数据----------------*/
@@ -316,21 +307,7 @@ typedef struct
     // attitude_t chassis_imu_data;
 #endif
 
-    // 后续增加底盘的真实速度
-    // float real_vx;
-    // float real_vy;
-    // float real_wz;
-    // 底盘反馈数据
-    // uint8_t is_video_link; // 是否有图传链路
-    uint16_t shoot_heat;  // 枪口热量
-    uint16_t shoot_limit; // 枪口热量上限
-    float bullet_speed;   // 裁判系统弹速
-    Self_Color_e self_color;
-    float yaw_motor_single_round_angle;
-    float 
-    // Gimbal_Ctrl_Cmd_s gimbal_ctrl_cmd;
-    // Shoot_Ctrl_Cmd_s shoot_ctrl_cmd;
-    // Bullet_Speed_e bullet_speed; // 弹速限制
+
 
 } Chassis_Upload_Data_s;
 
@@ -347,15 +324,55 @@ typedef struct
 
 typedef struct
 {
-    // code to go here
-    // ...
+
 } Shoot_Upload_Data_s;
 
 typedef struct
 {
     attitude_t gimbal_imu_data;
-    
+    float yaw_motor_single_round_angle;
 } Gimbal_Upload_Data_s;
 
+typedef struct 
+{
+    Self_Color_e self_color;
+    uint16_t shoot_heat;  // 枪口热量
+    uint16_t shoot_limit; // 枪口热量上限
+    float bullet_speed;   // 裁判系统弹速
+}Robot_Upload_Data_s;
+
+
+//-----------------------------上下C板通讯-----------------------------//
+typedef struct
+{
+    // Shoot_Ctrl_Cmd_s Loader_Ctrl_Cmd;// 拨弹盘指令
+    // Gimbal_Ctrl_Cmd_s Yaw_Ctrl_Cmd;//控制yaw电机的指令
+    // loader_mode_e loader_mode;           //  射频状态
+    // vision_mode_e vision_mode;           //  视觉状态
+    // vision_lock_mode_e vision_lock_mode; // 视觉锁定的目标状态
+    // vision_is_shoot_e vision_is_shoot;   // 是否使用视觉is_shooting参数
+    Shoot_Ctrl_Cmd_s Shoot_Ctr_Cmd;
+    Gimbal_Ctrl_Cmd_s Gimbal_Ctr_Cmd;
+    Chassis_Ctrl_Cmd_s Chassis_Ctr_Cmd;
+ 
+} CMD_Gimbal_Send_Data_s;
+
+typedef struct
+{
+    // 后续增加底盘的真实速度
+    // float real_vx;
+    // float real_vy;
+    // float real_wz;
+    // 底盘反馈数据
+    // uint8_t is_video_link; // 是否有图传链路
+
+
+    Shoot_Upload_Data_s Shoot_fetch_data;
+    Gimbal_Upload_Data_s Gimbal_fetch_data;
+    Chassis_Upload_Data_s Chassis_fetch_data;
+    Robot_Upload_Data_s Robot_fetch_data;
+
+
+} CMD_Chassis_Send_Data_s;
 #pragma pack() // 取消压缩
 #endif

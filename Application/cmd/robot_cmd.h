@@ -20,3 +20,7 @@ void RobotCMDInit(void);
  *
  */
 void RobotCMDTask(void);
+
+void GimbalCMDInit(void);
+
+void ChassisCMDInit(void);

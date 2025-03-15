@@ -19,7 +19,7 @@
 
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
 #include "gimbal.h"
-#include "New_gimbal.h"
+
 #include "shoot.h"
 #include "New_shoot.h"
 #include "robot_cmd.h"
@@ -39,13 +39,16 @@ void RobotInit(void)
     // 应用层初始化
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     //RobotCMDInit();
-    //GimbalInit();
-    //ShootInit();
+    GimbalInit();
+    ShootInit();
+    GimbalCMDInit();
    
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisInit();
+ 
+
 #endif
     // 测试代码
      //TESTInit();

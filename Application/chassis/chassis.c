@@ -24,8 +24,8 @@ static Subscriber_t *chassis_sub; // 用于订阅底盘的控制命令
 #endif
 static Chassis_Ctrl_Cmd_s chassis_cmd_recv;                  // 底盘接收到的控制命令
 __unused static Chassis_Upload_Data_s chassis_feedback_data; // 底盘回传的反馈数据
-static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
-static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
+// static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
+// static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
 
 static SuperCap_Instance *super_cap;                                 // 超级电容实例
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left right forward back
@@ -107,7 +107,7 @@ void ChassisInit()
     };
     PIDInit(&chassis_follow_pid, &chassis_follow_pid_conf);
 
-    referee_data = UITaskInit(&huart6, &ui_data); // 裁判系统初始化,会同时初始化UI
+    // referee_data = UITaskInit(&huart6, &ui_data); // 裁判系统初始化,会同时初始化UI
 
     SuperCap_Init_Config_s super_cap_config = {
         .can_config = {
@@ -169,19 +169,21 @@ static void LimitChassisOutput()
     // 功率限制待添加
     uint16_t chassis_power_buffer = 0; // 底盘功率缓冲区
     // uint16_t chassis_power        = 0;
-    // uint16_t chassis_power_limit  = 0;
+    uint16_t chassis_power_limit  = 0;
     float P_limit                 = 1; // 功率限制系数
 
-    chassis_power_buffer = referee_data->PowerHeatData.buffer_energy;
+    chassis_power_buffer = chassis_cmd_recv.chassis_power_buff;
+    chassis_power_limit  = chassis_cmd_recv.chassis_power_limit;
+    // chassis_power_buffer = referee_data->PowerHeatData.buffer_energy;
     // chassis_power        = referee_data->PowerHeatData.chassis_power;
     // chassis_power_limit  = referee_data->GameRobotState.chassis_power_limit;
 
     switch (chassis_cmd_recv.super_cap_mode) {
         case SUPER_CAP_OFF:
-            SuperCapSet(referee_data->PowerHeatData.buffer_energy, referee_data->GameRobotState.chassis_power_limit, 2); // 设置超级电容数据
+            SuperCapSet(chassis_power_buffer, chassis_power_limit, 2); // 设置超级电容数据
             break;
         case SUPER_CAP_ON:
-            SuperCapSet(referee_data->PowerHeatData.buffer_energy, referee_data->GameRobotState.chassis_power_limit, 3); // 设置超级电容数据
+            SuperCapSet(chassis_power_buffer,chassis_power_limit, 3); // 设置超级电容数据
             break;
         default:
             break;
@@ -190,8 +192,7 @@ static void LimitChassisOutput()
     if (chassis_cmd_recv.super_cap_mode == SUPER_CAP_OFF || super_cap->cap_data.voltage <= 12.f) {
         // 当电容电量过低时强制关闭超电
         chassis_cmd_recv.super_cap_mode = SUPER_CAP_OFF;
-        SuperCapSet(referee_data->PowerHeatData.buffer_energy, referee_data->GameRobotState.chassis_power_limit, 2); // 设置超级电容数据
-        /*缓冲能量占比环，总体约束*/
+        SuperCapSet(chassis_power_buffer, chassis_power_limit, 2);        /*缓冲能量占比环，总体约束*/
         if (chassis_power_buffer >= 50) {
             P_limit = 1;
         } else {
@@ -213,10 +214,10 @@ static void LimitChassisOutput()
         //     P_limit = 0.125;
     } else {
         chassis_cmd_recv.super_cap_mode = SUPER_CAP_ON;
-        SuperCapSet(referee_data->PowerHeatData.buffer_energy, referee_data->GameRobotState.chassis_power_limit, 3); // 设置超级电容数据
+        SuperCapSet(chassis_power_buffer, chassis_power_limit, 3); //3开启超电
         P_limit = 1;
     }
-    ui_data.Chassis_Power_Data.chassis_power_mx = super_cap->cap_data.voltage;
+    // ui_data.Chassis_Power_Data.chassis_power_mx = super_cap->cap_data.voltage;
     SuperCapSend(); // 发送超级电容数据
     // 完成功率限制后进行电机参考输入设定
     DJIMotorSetRef(motor_lf, vt_lf * P_limit);
@@ -289,22 +290,22 @@ void ChassisTask()
     // 根据电机的反馈速度和IMU(如果有)计算真实速度
     EstimateSpeed();
 
-    chassis_feedback_data.shoot_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
-    chassis_feedback_data.shoot_limit  = referee_data->GameRobotState.shooter_barrel_heat_limit;
-    chassis_feedback_data.bullet_speed = referee_data->ShootData.bullet_speed;
-    // 我方颜色id小于10是红色,大于10是蓝色,注意这里发送的是自己的颜色, 1:blue , 2:red
-    chassis_feedback_data.self_color = referee_data->GameRobotState.robot_id > 10 ? COLOR_BLUE : COLOR_RED;
+    // chassis_feedback_data.shoot_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+    // chassis_feedback_data.shoot_limit  = referee_data->GameRobotState.shooter_barrel_heat_limit;
+    // chassis_feedback_data.bullet_speed = referee_data->ShootData.bullet_speed;
+    // // 我方颜色id小于10是红色,大于10是蓝色,注意这里发送的是自己的颜色, 1:blue , 2:red
+    // chassis_feedback_data.self_color = referee_data->GameRobotState.robot_id > 10 ? COLOR_BLUE : COLOR_RED;
 
-    ui_data.ui_mode          = chassis_cmd_recv.ui_mode;
-    ui_data.chassis_mode     = chassis_cmd_recv.chassis_mode;
-    ui_data.friction_mode    = chassis_cmd_recv.friction_mode;
-    ui_data.vision_mode      = chassis_cmd_recv.vision_mode;
-    ui_data.vision_lock_mode = chassis_cmd_recv.vision_lock_mode;
-    ui_data.level            = referee_data->GameRobotState.robot_level;
-    ui_data.lid_mode         = chassis_cmd_recv.lid_mode;
-    ui_data.super_cap_mode   = chassis_cmd_recv.super_cap_mode;
-    ui_data.loader_mode      = chassis_cmd_recv.loader_mode;
-    ui_data.vision_is_shoot  = chassis_cmd_recv.vision_is_shoot;
+    // ui_data.ui_mode          = chassis_cmd_recv.ui_mode;
+    // ui_data.chassis_mode     = chassis_cmd_recv.chassis_mode;
+    // ui_data.friction_mode    = chassis_cmd_recv.friction_mode;
+    // ui_data.vision_mode      = chassis_cmd_recv.vision_mode;
+    // ui_data.vision_lock_mode = chassis_cmd_recv.vision_lock_mode;
+    // ui_data.level            = referee_data->GameRobotState.robot_level;
+    // ui_data.lid_mode         = chassis_cmd_recv.lid_mode;
+    // ui_data.super_cap_mode   = chassis_cmd_recv.super_cap_mode;
+    // ui_data.loader_mode      = chassis_cmd_recv.loader_mode;
+    // ui_data.vision_is_shoot  = chassis_cmd_recv.vision_is_shoot;
     // 推送反馈消息
 #ifdef ONE_BOARD
     PubPushMessage(chassis_pub, (void *)&chassis_feedback_data);
