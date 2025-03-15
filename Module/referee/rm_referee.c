@@ -70,6 +70,7 @@ static void JudgeReadData(uint8_t *buff)
                     case ID_game_warning: // 0x0104
                         memcpy(&referee_info.GameWarning, (buff + DATA_Offset), LEN_game_warning);
                         break;
+                        
                     case ID_dart_info: // 0x0105
                         memcpy(&referee_info.DartInfo, (buff + DATA_Offset), LEN_dart_info);
                         break;

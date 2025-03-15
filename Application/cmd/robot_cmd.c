@@ -101,7 +101,7 @@ void GimbalCMDInit(void)
     shoot_cmd_pub  = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
     // 注册射击反馈的订阅者
     shoot_feed_sub = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
-
+ 
     // 初始化遥控器,使用串口3
     rc_data = RemoteControlInit(&huart3); // 初始化遥控器,C板上使用USART3
     // 初始化视觉控制
@@ -145,10 +145,11 @@ void GimbalCMDSend(void)
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 
-    gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
     gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
+
+    gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
     gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
-    UARTCommSend(gimbal_uart_comm,(void*)&gimbal_comm_send);
+    UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
 
     VisionSend();
 }
