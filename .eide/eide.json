@@ -132,7 +132,9 @@
           "Application/gimbal",
           "Application/shoot",
           "Module/super_cap",
-          "Module/motor/LKmotor"
+          "Module/motor/LKmotor",
+          "Application/Newgimbal",
+          "Application/Newshoot"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

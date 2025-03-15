@@ -14,7 +14,6 @@
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
 #include "chassis.h"
-#include "New_chassis.h"
 #endif
 
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
@@ -47,7 +46,7 @@ void RobotInit(void)
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisInit();
- 
+    ChassisCMDInit();
 
 #endif
     // 测试代码
@@ -66,14 +65,16 @@ void RobotInit(void)
 void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-//TESTTask();
+    //TESTTask();
   //  RobotCMDTask();
    // GimbalTask();
    // ShootTask();
+   GimbalCMDTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisTask();
+    ChassisCMDTask();
 #endif
 }
 
