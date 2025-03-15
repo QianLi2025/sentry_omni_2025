@@ -5,7 +5,9 @@
 #include "chassis.h"
 
 #include "bsp_init.h"
-
+#include "New_shoot.h"
+#include "New_gimbal.h"
+#include "robot_cmd.h"
 // 编译warning,提醒开发者修改机器人参数
 #ifndef ROBOT_DEF_PARAM_WARNING
 #define ROBOT_DEF_PARAM_WARNING
@@ -14,14 +16,15 @@
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
 #include "chassis.h"
+
+//#include "New_chassis.h"
 #endif
 
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
 #include "gimbal.h"
 
 #include "shoot.h"
-#include "New_shoot.h"
-#include "robot_cmd.h"
+
 #endif
 /**
  * @brief 机器人初始化
@@ -38,15 +41,16 @@ void RobotInit(void)
     // 应用层初始化
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     //RobotCMDInit();
-    GimbalInit();
-    ShootInit();
     GimbalCMDInit();
+    PitchInit();
+    FrictionInit();
    
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
-    ChassisInit();
     ChassisCMDInit();
+    YawInit();
+    LoaderInit();
 
 #endif
     // 测试代码
@@ -65,16 +69,19 @@ void RobotInit(void)
 void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-    //TESTTask();
-  //  RobotCMDTask();
-   // GimbalTask();
-   // ShootTask();
-   GimbalCMDTask();
+//TESTTask();
+GimbalCMDTask();
+PitchTask();
+FrictionTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
-    ChassisTask();
     ChassisCMDTask();
+ChassisTask();
+    
+    YawTask();
+    LoaderTask();
+    
 #endif
 }
 
