@@ -10,7 +10,6 @@
 #include <math.h>
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static DJIMotor_Instance *yaw_motor;
-static float yaw_motor_single_round_angle;
 static LKMotor_Instance  *pitch_motor;
 static Publisher_t *gimbal_pub;                   // 云台应用消息发布者(云台反馈给cmd)
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
@@ -18,7 +17,12 @@ static Gimbal_Upload_Data_s gimbal_feedback_data; // 回传给cmd的云台状态
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_recv;         // 来自cmd的控制信息
 static float pitch_cd_ms;
 static int pitch_timer =0;
-
+static float yaw_target;
+static float yaw_current;
+static float yaw_motor_angle;
+static float pitch_target;      
+static float pitch_current;     
+static float pitch_motor_angle;
 void YawInit (){
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
@@ -60,9 +64,10 @@ void YawInit (){
         },
         .motor_type = GM6020};
         yaw_motor   = DJIMotorInit(&yaw_config);
-        //gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
+
+        gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
         gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
- yaw_motor_single_round_angle = PubRegister("yaw_motor_single_round_angle", sizeof(float));
+
 }
 void PitchInit(){
     Motor_Init_Config_s pitch_config = {
@@ -173,7 +178,8 @@ void YawTask(){
     //PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
     //chassis_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     //CANCommSend(chasiss_can_comm, (void *)&chassis_feedback_data);
-    PubPushMessage(yaw_motor_single_round_angle, (void *)&yaw_motor->measure.angle_single_round);
+
+    PubPushMessage(gimbal_pub, (void *)&yaw_motor->measure.angle_single_round);
 }
 void PitchTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
@@ -199,15 +205,15 @@ void PitchTask(){
             LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
             pitch_cd_ms= DWT_GetTimeline_ms();
             pitch_cd_ms /= 1000;
-            int pitch_timer = (int)round(pitch_cd_ms);
+             pitch_timer = (int)round(pitch_cd_ms);
             pitch_timer%=2;
             if(pitch_timer==0){
-                LKMotorSetRef(yaw_motor, -10);
+                LKMotorSetRef(pitch_motor, -10);
                 
             }
             if (pitch_timer==1)
             {
-                LKMotorSetRef(yaw_motor, 10);
+                LKMotorSetRef(pitch_motor, 10);
             }
             
 
