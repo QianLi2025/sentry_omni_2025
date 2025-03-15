@@ -24,6 +24,7 @@ static float pitch_target;
 static float pitch_current;     
 static float pitch_motor_angle;
 void YawInit (){
+    gimba_IMU_data = INS_Init();
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
             .can_handle = &hcan2,
@@ -31,9 +32,9 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 0.685,
-                .Ki                = 0.315,
-                .Kd                = 0.022,
+                .Kp                = 2,
+                .Ki                = 0,
+                .Kd                = 2,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
@@ -42,8 +43,8 @@ void YawInit (){
                 .Derivative_LPF_RC = 0.025,
             },
             .speed_PID = {
-                .Kp            = 1,
-                .Ki            = 0,
+                .Kp            = 20,
+                .Ki            = 10,
                 .Kd            = 0,
                 .CoefB         = 0.3,
                 .CoefA         = 0.2,
@@ -60,7 +61,7 @@ void YawInit (){
             .speed_feedback_source = OTHER_FEED,
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = ANGLE_LOOP | SPEED_LOOP,
-            .motor_reverse_flag    = MOTOR_DIRECTION_NORMAL,
+            .motor_reverse_flag    = MOTOR_DIRECTION_REVERSE,
         },
         .motor_type = GM6020};
         yaw_motor   = DJIMotorInit(&yaw_config);
@@ -73,13 +74,13 @@ void PitchInit(){
     Motor_Init_Config_s pitch_config = {
         .can_init_config = {
             .can_handle = &hcan1,
-            .tx_id      = 3,
+            .tx_id      = 4,
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 0.4,
-                .Ki                = 0.5,
-                .Kd                = 0.0085,
+                .Kp                = 2,
+                .Ki                = 0,
+                .Kd                = 2,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.1,
@@ -89,8 +90,8 @@ void PitchInit(){
                 .Output_LPF_RC     = 0.05,
             },
             .speed_PID = {
-                .Kp            = 1,
-                .Ki            = 0,
+                .Kp            = 20,
+                .Ki            = 10,
                 .Kd            = 0,
                 .CoefB         = 0.6,
                 .CoefA         = 0.3,
@@ -123,23 +124,6 @@ void YawTask(){
     yaw_target        = gimbal_cmd_recv.yaw;
     yaw_current       = gimba_IMU_data->YawTotalAngle;
     yaw_motor_angle   = yaw_motor->measure.total_angle;
-        if (gimbal_cmd_recv.vision_mode == LOCK) {
-        switch (gimbal_cmd_recv.vision_lock_mode) {
-            case ARMOR:
-                break;
-            case RUNNE:
-                yaw_motor->motor_controller.angle_PID.Kp = 0.47; // 0.5
-                yaw_motor->motor_controller.angle_PID.Ki = 0.01; // 0.01
-                yaw_motor->motor_controller.angle_PID.Kd = 0.01; // 0.01
-                break;
-            default:
-                break;
-        }
-    } else {
-        yaw_motor->motor_controller.angle_PID.Kp = 0.685; // 0.685
-        yaw_motor->motor_controller.angle_PID.Ki = 0.315; // 0.315
-        yaw_motor->motor_controller.angle_PID.Kd = 0.022; // 0.022
-    }
     // @todo:现在已不再需要电机反馈,实际上可以始终使用IMU的姿态数据来作为云台的反馈,yaw电机的offset只是用来跟随底盘
     // 根据控制模式进行电机反馈切换和过渡,视觉模式在robot_cmd模块就已经设置好,gimbal只看yaw_ref和pitch_ref
     switch (gimbal_cmd_recv.gimbal_mode) {
@@ -150,6 +134,7 @@ void YawTask(){
         // 使用陀螺仪的反馈,底盘根据yaw电机的offset跟随云台或视觉模式采用
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             DJIMotorEnable(yaw_motor);
+            DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
             DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->YawTotalAngle);
             DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[2]);
             DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
@@ -159,6 +144,7 @@ void YawTask(){
             DJIMotorEnable(yaw_motor);
             DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->YawTotalAngle);
             DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[2]);
+            DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
             DJIMotorSetRef(yaw_motor, 1);
         default:
             break;

@@ -27,6 +27,7 @@ void FrictionInit(){
     Motor_Init_Config_s friction_config = {
         .can_init_config = {
             .can_handle = &hcan2,
+            
         },
         .controller_param_init_config = {
             .speed_PID = {
