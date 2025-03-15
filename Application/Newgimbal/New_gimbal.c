@@ -11,7 +11,7 @@
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static DJIMotor_Instance *yaw_motor;
 static float yaw_motor_single_round_angle;
-static LKMotor_Measure_t  *pitch_motor;
+static LKMotor_Instance  *pitch_motor;
 static Publisher_t *gimbal_pub;                   // 云台应用消息发布者(云台反馈给cmd)
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
 static Gimbal_Upload_Data_s gimbal_feedback_data; // 回传给cmd的云台状态信息
@@ -154,19 +154,8 @@ void YawTask(){
             DJIMotorEnable(yaw_motor);
             DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->YawTotalAngle);
             DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimba_IMU_data->Gyro[2]);
-            pitch_cd_ms= DWT_GetTimeline_ms();
-            pitch_cd_ms /= 1000;
-            int pitch_timer = (int)round(pitch_cd_ms);
-            pitch_timer%=2;
-            if(pitch_timer==0){
-                DJIMotorSetRef(yaw_motor, -10);
-                
-            }
-            if (pitch_timer==1)
-            {
-                DJIMotorSetRef(yaw_motor, 10);
-            }
-            
+            DJIMotorSetRef(yaw_motor, 1);
+           
             
             
         default:
@@ -208,7 +197,19 @@ void PitchTask(){
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
             LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
-            pitch_high_time=DWT_GetTimeline_ms();
+            pitch_cd_ms= DWT_GetTimeline_ms();
+            pitch_cd_ms /= 1000;
+            int pitch_timer = (int)round(pitch_cd_ms);
+            pitch_timer%=2;
+            if(pitch_timer==0){
+                LKMotorSetRef(yaw_motor, -10);
+                
+            }
+            if (pitch_timer==1)
+            {
+                LKMotorSetRef(yaw_motor, 10);
+            }
+            
 
 
         default:

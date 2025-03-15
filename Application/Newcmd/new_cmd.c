@@ -56,7 +56,7 @@ static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
 static Subscriber_t *gimbal_feed_sub;          // 云台反馈信息订阅者
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_send;      // 传递给云台的控制信息
 static Gimbal_Upload_Data_s gimbal_fetch_data; // 从云台获取的反馈信息
-
+static float yaw_motor_single_round_angle_sub;//底盘反馈的yaw电机单圈角度
 static Publisher_t *shoot_cmd_pub;           // 发射控制消息发布者
 static Subscriber_t *shoot_feed_sub;         // 发射反馈信息订阅者
 static Shoot_Ctrl_Cmd_s shoot_cmd_send;      // 传递给发射的控制信息
@@ -86,7 +86,6 @@ void GimbalCMDInit(void){
          gimbal_cmd_pub  = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
          gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
          shoot_cmd_pub   = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
-         shoot_feed_sub  = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
      
      #ifdef GIMBAL_BOARD
          UARTComm_Init_Config_s uart_conf ={
@@ -113,7 +112,7 @@ void ChassisCMDInit(void){
     gimbal_cmd_pub  = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
          gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
          shoot_cmd_pub   = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
-         shoot_feed_sub  = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
+         yaw_motor_single_round_angle_sub= SubRegister("yaw_motor_single_round_angle", sizeof(float));
     shoot_cmd_send.attack_mode  = NORMAL;
          shoot_cmd_send.dead_time    = 600;
          shoot_cmd_send.bullet_speed = SMALL_AMU_30;
@@ -153,6 +152,8 @@ void GimbalCMDTask(void){
     VisionSend();
 }
 void ChassisCMDTask(void){
+    SubGetMessage(yaw_motor_single_round_angle_sub,&yaw_motor_single_round_angle)
+    chassis_fetch_data = *(Chassis_Upload_Data_s *)UARTCommGet(cmd_uart_comm);
     SubGetMessage(shoot_feed_sub, &shoot_fetch_data);
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
       // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
@@ -160,7 +161,8 @@ void ChassisCMDTask(void){
       chassis_cmd_send.friction_mode = shoot_cmd_send.friction_mode;
       chassis_cmd_send.vision_mode   = vision_ctrl->is_tracking ? LOCK : UNLOCK;
       chassis_cmd_send.lid_mode      = shoot_cmd_send.lid_mode;
-      //PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send);
+      PubPushMessage(chassis_cmd_pub, (void *)&chassis_cmd_send);
+
 }
 /**
  * @brief 根据gimbal app传回的当前电机角度计算和零位的误差
