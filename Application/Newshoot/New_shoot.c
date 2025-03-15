@@ -14,6 +14,7 @@ static Chassis_Upload_Data_s chassis_feedback_data;
 static Publisher_t *shoot_pub;
 static Shoot_Ctrl_Cmd_s shoot_cmd_recv; // 来自cmd的发射控制信息
 static Subscriber_t *shoot_sub;
+static Subscriber_t *loader_sub;
 //static Shoot_Upload_Data_s shoot_feedback_data; // 来自cmd的发射控制信息
 
 // dwt定时,计算冷却用
@@ -136,11 +137,11 @@ void LoaderInit(){
         .motor_type = M2006 // 英雄使用m3508
     };
     loader = DJIMotorInit(&loader_config);
-    shoot_sub = SubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
+    loader_sub = SubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
 
 }
 void LoaderTask(){
-    SubGetMessage(shoot_sub, &shoot_cmd_recv);
+    SubGetMessage(loader_sub, &shoot_cmd_recv);
         // 如果上一次触发单发或3发指令的时间加上不应期仍然大于当前时间(尚未休眠完毕),直接返回即可
     // 单发模式主要提供给能量机关激活使用(以及英雄的射击大部分处于单发)
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
