@@ -106,8 +106,6 @@
           "Module",
           "Application/arm",
           "Application/chassis",
-          "Application/Newshoot",
-          "Application/Newgimbal",
           "Application/cmd",
           "Application/test",
           "Module/algorithm",

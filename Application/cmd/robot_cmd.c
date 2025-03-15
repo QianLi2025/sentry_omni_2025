@@ -34,7 +34,7 @@
 #ifdef GIMBAL_BOARD
 #include "UARTComm.h"
 static UARTComm_Instance *gimbal_uart_comm; // 双板通信
-static CMD_Gimbal_Send_Data_s *gimbal_comm_send;
+static CMD_Gimbal_Send_Data_s gimbal_comm_send;
 static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
 
 static Vision_Recv_s *vision_ctrl; // 视觉控制信息
@@ -45,7 +45,7 @@ static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 #include "UARTComm.h"
 #include "referee_UI.h"
 static UARTComm_Instance *chassis_uart_comm; // 双板通信
-static CMD_Chassis_Send_Data_s *chassis_comm_send;
+static CMD_Chassis_Send_Data_s chassis_comm_send;
 static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
 
 static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
@@ -145,9 +145,9 @@ void GimbalCMDSend(void)
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 
-    gimbal_comm_send->Gimbal_Ctr_Cmd = gimbal_cmd_send;
-    gimbal_comm_send->Shoot_Ctr_Cmd = shoot_cmd_send;
-    gimbal_comm_send->Chassis_Ctr_Cmd = chassis_cmd_send;
+    gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
+    gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
+    gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
     UARTCommSend(gimbal_uart_comm,(void*)&gimbal_comm_send);
 
     VisionSend();
@@ -350,13 +350,13 @@ void ChassisCMDSend(void)
 
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
 
-    //chassis_comm_send->Chassis_fetch_data = &chassis_fetch_data;
-    chassis_comm_send->Gimbal_fetch_data = gimbal_fetch_data;
-    chassis_comm_send->Robot_fetch_data = robot_fetch_data; 
+    //chassis_comm_send.Chassis_fetch_data = &chassis_fetch_data;
+    chassis_comm_send.Gimbal_fetch_data = gimbal_fetch_data;
+    chassis_comm_send.Robot_fetch_data = robot_fetch_data; 
     //TODO:robot_fetch_data 待赋值
 
-    //chassis_comm_send->Shoot_fetch_data = &shoot_fetch_data;
-    UARTCommSend(chassis_uart_comm,(void*)chassis_comm_send);
+    //chassis_comm_send.Shoot_fetch_data = &shoot_fetch_data;
+    UARTCommSend(chassis_uart_comm,(void*)&chassis_comm_send);
 }
 void ChassisCMDTask(void)
 {
