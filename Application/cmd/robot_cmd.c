@@ -34,7 +34,7 @@
 #ifdef GIMBAL_BOARD
 #include "UARTComm.h"
 static UARTComm_Instance *gimbal_uart_comm; // 双板通信
-static CMD_Gimbal_Send_Data_s *gimbal_comm_send;
+static CMD_Gimbal_Send_Data_s gimbal_comm_send;
 static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
 
 static Vision_Recv_s *vision_ctrl; // 视觉控制信息
@@ -45,7 +45,7 @@ static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 #include "UARTComm.h"
 #include "referee_UI.h"
 static UARTComm_Instance *chassis_uart_comm; // 双板通信
-static CMD_Chassis_Send_Data_s *chassis_comm_send;
+static CMD_Chassis_Send_Data_s chassis_comm_send;
 static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
 
 static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
@@ -133,7 +133,7 @@ void GimbalCMDInit(void)
 void GimbalCMDGet(void) //获取反馈数据
 {
     // SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
-    gimbal_comm_recv = *(CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
+    gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
     chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
     shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
     gimbal_fetch_data = gimbal_comm_recv->Gimbal_fetch_data;
@@ -145,9 +145,9 @@ void GimbalCMDSend(void)
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 
-    gimbal_comm_send->Gimbal_Ctr_Cmd = gimbal_cmd_send;
-    gimbal_comm_send->Shoot_Ctr_Cmd = shoot_cmd_send;
-    gimbal_comm_send->Chassis_Ctr_Cmd = chassis_cmd_send;
+    gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
+    gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
+    gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
     UARTCommSend(gimbal_uart_comm,(void*)&gimbal_comm_send);
 
     VisionSend();
@@ -156,21 +156,20 @@ void GimbalCMDSend(void)
 void GimbalCMDTask(void)
 {
     //获取各个模块数据
-    GimbalFeedGet();
+    GimbalCMDGet();
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
     shoot_cmd_send.rest_heat = robot_fetch_data.shoot_limit - robot_fetch_data.shoot_heat - 20; // 计算剩余热量
     
-    if (!rc_data[TEMP].rc.switch_right ||
-        switch_is_down(rc_data[TEMP].rc.switch_right)) // 当收不到遥控器信号时，使用图传链路
+    if (!rc_data[TEMP].rc.switch_right || switch_is_down(rc_data[TEMP].rc.switch_right)) // 当收不到遥控器信号时，使用图传链路
     {
-        MouseKeySet();
+        //MouseKeySet();
     } else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 当收到遥控器信号时,且右拨杆为中，使用遥控器
     {
         RemoteControlSet();
     } else if (switch_is_up(rc_data[TEMP].rc.switch_right)) {
         // EmergencyHandler();
-        RemoteMouseKeySet();
+       // RemoteMouseKeySet();
     }
 
     // 设置视觉发送数据,还需增加加速度和角速度数据
@@ -178,10 +177,10 @@ void GimbalCMDTask(void)
     yaw          = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
     pitch        = gimbal_fetch_data.gimbal_imu_data.Roll;
     roll         = gimbal_fetch_data.gimbal_imu_data.Pitch;
-    bullet_speed = chassis_fetch_data.bullet_speed;
+    bullet_speed = robot_fetch_data.bullet_speed;
     yaw_speed    = gimbal_fetch_data.gimbal_imu_data.Gyro[2];
 
-    VisionSetDetectColor(chassis_fetch_data.self_color);
+    VisionSetDetectColor(robot_fetch_data.self_color);
     VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
 
     // 发送控制信息
@@ -351,13 +350,13 @@ void ChassisCMDSend(void)
 
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
 
-    //chassis_comm_send->Chassis_fetch_data = &chassis_fetch_data;
-    chassis_comm_send->Gimbal_fetch_data = gimbal_fetch_data;
-    chassis_comm_send->Robot_fetch_data = robot_fetch_data; 
+    //chassis_comm_send.Chassis_fetch_data = &chassis_fetch_data;
+    chassis_comm_send.Gimbal_fetch_data = gimbal_fetch_data;
+    chassis_comm_send.Robot_fetch_data = robot_fetch_data; 
     //TODO:robot_fetch_data 待赋值
 
-    //chassis_comm_send->Shoot_fetch_data = &shoot_fetch_data;
-    UARTCommSend(chassis_uart_comm,(void*)chassis_comm_send);
+    //chassis_comm_send.Shoot_fetch_data = &shoot_fetch_data;
+    UARTCommSend(chassis_uart_comm,(void*)&chassis_comm_send);
 }
 void ChassisCMDTask(void)
 {
@@ -568,3 +567,4 @@ static void EmergencyHandler(void)
     shoot_cmd_send.load_mode        = LOAD_STOP;
     shoot_cmd_send.lid_mode         = LID_CLOSE;
 }
+

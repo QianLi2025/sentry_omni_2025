@@ -27,6 +27,7 @@ void FrictionInit(){
     Motor_Init_Config_s friction_config = {
         .can_init_config = {
             .can_handle = &hcan2,
+            
         },
         .controller_param_init_config = {
             .speed_PID = {
@@ -97,7 +98,7 @@ void FrictionTask(){
 void LoaderInit(){
     Motor_Init_Config_s loader_config = {
         .can_init_config = {
-            .can_handle = &hcan1,
+            .can_handle = &hcan2,
             .tx_id      = 1,
         },
         .controller_param_init_config = {

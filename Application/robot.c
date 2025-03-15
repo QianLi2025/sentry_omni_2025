@@ -51,7 +51,7 @@ void RobotInit(void)
     ChassisCMDInit();
     YawInit();
     LoaderInit();
-
+    ChassisInit();
 #endif
     // 测试代码
      //TESTInit();
@@ -69,19 +69,17 @@ void RobotInit(void)
 void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-//TESTTask();
-GimbalCMDTask();
-PitchTask();
-FrictionTask();
+    //TESTTask();
+    GimbalCMDTask();
+    PitchTask();
+    FrictionTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDTask();
-ChassisTask();
-    
+    ChassisTask();
     YawTask();
-    LoaderTask();
-    
+    LoaderTask();    
 #endif
 }
 

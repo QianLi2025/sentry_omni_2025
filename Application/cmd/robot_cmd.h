@@ -24,3 +24,6 @@ void RobotCMDTask(void);
 void GimbalCMDInit(void);
 
 void ChassisCMDInit(void);
+
+void GimbalCMDTask(void);
+void ChassisCMDTask(void);

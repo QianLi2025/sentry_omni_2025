@@ -19,5 +19,5 @@ void LoaderInit();
  *
  */
 void FrictionTask();
-void LoaderInit();
+void LoaderTask();
 #endif // SHOOT_H
