@@ -27,7 +27,7 @@ void YawInit (){
     gimba_IMU_data = INS_Init();
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
-            .can_handle = &hcan1,
+            .can_handle = &hcan2,
             .tx_id      = 1,
         },
         .controller_param_init_config = {
