@@ -25,7 +25,7 @@
 #include "arm_math.h"
 #include "DJI_motor.h"
 #include "UARTComm.h"
-
+#include "bsp_dwt.h"
 // 私有宏,自动将编码器转换成角度值
 #define YAW_ALIGN_ANGLE     (YAW_CHASSIS_ALIGN_ECD * ECD_ANGLE_COEF_DJI) // 对齐时的角度,0-360
 #define PTICH_HORIZON_ANGLE (PITCH_HORIZON_ECD * ECD_ANGLE_COEF_DJI)     // pitch水平时电机的角度,0-360
@@ -132,26 +132,33 @@ void GimbalCMDInit(void)
 
 void GimbalCMDGet(void) //获取反馈数据
 {
-    // SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
+    SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
     gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
     chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
     shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
-    gimbal_fetch_data = gimbal_comm_recv->Gimbal_fetch_data;
+    gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
 }
-
+// dwt定时,计算冷却用
+static float hibernate_time = 0, dead_time = 0;
 void GimbalCMDSend(void)
 {
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 
     gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
-
     gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
     gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
     UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
 
+    if (hibernate_time + dead_time > DWT_GetTimeline_ms())
+    return;
+    else
+    {
     VisionSend();
+    hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
+    dead_time      = 10; // 10ms发送一次
+    }
 }
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
@@ -344,6 +351,11 @@ void ChassisCMDGet(void)
     //TODO：发射，云台，Robot 状态反馈
 }
 
+void RobotStateGet(void)
+{
+    // robot_fetch_data.bullet_speed
+}
+
 void ChassisCMDSend(void)
 {
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
@@ -351,6 +363,7 @@ void ChassisCMDSend(void)
     PubPushMessage(chassis_cmd_pub, (void*)&chassis_cmd_send);
 
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
+
 
     //chassis_comm_send.Chassis_fetch_data = &chassis_fetch_data;
     chassis_comm_send.Gimbal_fetch_data = gimbal_fetch_data;

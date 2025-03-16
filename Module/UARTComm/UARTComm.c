@@ -18,6 +18,7 @@ static void UARTCommRxCallback(void)
     }
     if (ucomm->recv_state) // 已经收到过帧头
     {
+
         if (ucomm->uart_instance->recv_buff[ucomm->recv_buf_len - 1] == UARTCOMM_TAIL) // 如果帧尾正确
         {
             uint8_t crc8 = crc_8(ucomm->uart_instance->recv_buff + 2, ucomm->recv_data_len); // 计算crc8
