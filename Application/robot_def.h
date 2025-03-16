@@ -39,6 +39,7 @@
 #define PITCH_HORIZON_ECD         2100  // 云台处于水平位置时编码器值,若对云台有机械改动需要修改
 #define PITCH_MAX_ANGLE           25.f  // 云台竖直方向最大角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
 #define PITCH_MIN_ANGLE           -20.f // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
+#define PITCH_MIN_ANGLE           -20.f // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
 // 发射参数
 #define ONE_BULLET_DELTA_ANGLE 45    // 发射一发弹丸拨盘转动的距离,由机械设计图纸给出
 #define REDUCTION_RATIO_LOADER 36.0f // 拨盘电机的减速比,英雄需要修改为3508的19.0f
@@ -256,7 +257,7 @@ typedef struct
     float yaw;
     float pitch;
     float chassis_rotate_wz;
-
+    attitude_t gimbal_imu_data;
     gimbal_mode_e gimbal_mode;
     vision_mode_e vision_mode;
     vision_lock_mode_e vision_lock_mode;
@@ -268,7 +269,7 @@ typedef struct
     float yaw;
     float up_yaw;
     float up_speed;
-
+    
     uint8_t is_init;
     gimbal_mode_e gimbal_mode;
 } Gimbal_Ctrl_Yaw_Cmd_s;

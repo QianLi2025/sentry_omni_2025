@@ -42,6 +42,7 @@ void RobotInit(void)
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     //RobotCMDInit();
     GimbalCMDInit();
+     PitchInit();
     // PitchInit();
     FrictionInit();
    
@@ -49,6 +50,8 @@ void RobotInit(void)
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDInit();
+     YawInit();
+     LoaderInit();
     // YawInit();
     // LoaderInit();
     ChassisInit();
@@ -71,15 +74,16 @@ void RobotTask()
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     //TESTTask();
     GimbalCMDTask();
-    // PitchTask();
+     PitchTask();
+     PitchTask();
     FrictionTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDTask();
     ChassisTask();
-    // YawTask();
-    // LoaderTask();    
+     YawTask();
+     LoaderTask();    
 #endif
 }
 
