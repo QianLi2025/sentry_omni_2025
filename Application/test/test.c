@@ -41,7 +41,6 @@ void TESTInit(void)
         .control_type = MOTOR_CONTROL_POSITION_AND_SPEED,
     };
     dm_motor_test = DMMotorInit(&motor_config);
-
 }
 
 void TESTTask(void)

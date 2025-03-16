@@ -153,6 +153,7 @@ void GimbalCMDSend(void)
 
     VisionSend();
 }
+
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void GimbalCMDTask(void)
 {
@@ -189,11 +190,10 @@ void GimbalCMDTask(void)
     // chassis_cmd_send.friction_mode = shoot_cmd_send.friction_mode;
     // chassis_cmd_send.vision_mode   = vision_ctrl->is_tracking ? LOCK : UNLOCK;
     // chassis_cmd_send.lid_mode      = shoot_cmd_send.lid_mode;
-
-
     //发送指令
     GimbalCMDSend();
 }
+
 /**
  * @brief 根据gimbal app传回的当前电机角度计算和零位的误差
  *        单圈绝对角度的范围是0~360,说明文档中有图示
@@ -246,6 +246,7 @@ static void RemoteControlSet(void)
         gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
         gimbal_cmd_send.pitch = (vision_ctrl->pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl->pitch);
     }
+
     // 云台软件限位
     if (gimbal_cmd_send.pitch > PITCH_MAX_ANGLE)
         gimbal_cmd_send.pitch = PITCH_MAX_ANGLE;
@@ -442,7 +443,6 @@ void ChassisCMDTask(void)
 //     } else {
 //         VisionSetReset(0);
 //     }
-
 //     if (vision_ctrl->is_tracking) {
 //         if (vision_ctrl->is_shooting) {
 //             chassis_cmd_send.vision_mode = LOCK;
