@@ -107,15 +107,14 @@ void YawTask(){
     // 在合适的地方添加pitch重力补偿前馈力矩
     // 根据IMU姿态/pitch电机角度反馈计算出当前配重下的重力矩
     // ...
-
     // 设置反馈数据,主要是imu和yaw的ecd
-
     gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
 }
 
 # if defined(GIMBAL_BOARD)
 void PitchInit(){
+    gimba_IMU_data = INS_Init();
     gimba_IMU_data = INS_Init();
     Motor_Init_Config_s pitch_config = {
         .can_init_config = {
@@ -147,7 +146,9 @@ void PitchInit(){
                 .Output_LPF_RC = 0.001f,
             },
             .other_angle_feedback_ptr = &gimba_IMU_data->Pitch, //上正下负
+            .other_angle_feedback_ptr = &gimba_IMU_data->Pitch, //上正下负
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
+            .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),//上正下负
             .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),//上正下负
         },
         .controller_setting_init_config = {
@@ -163,13 +164,13 @@ void PitchInit(){
     pitch_motor = LKMotorInit(&pitch_config);
     gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
     gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
-    //TODO：Test，记得删除
     LKMotorEnable(pitch_motor);
 }
 
 void PitchTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
     pitch_target      = gimbal_cmd_recv.pitch;
+    pitch_current     = gimba_IMU_data->Pitch;
     pitch_current     = gimba_IMU_data->Pitch;
     pitch_motor_angle = pitch_motor->measure.total_angle;
     switch (gimbal_cmd_recv.gimbal_mode) {
@@ -189,23 +190,13 @@ void PitchTask(){
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
             // LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
-            pitch_cd_ms= DWT_GetTimeline_ms();
-            pitch_cd_ms /= 1000;
-             pitch_timer = (int)round(pitch_cd_ms);
-            pitch_timer%=2;
-            if(pitch_timer==0){
-                LKMotorSetRef(pitch_motor, -10);
-                
-            }
-            if (pitch_timer==1)
-            {
-                LKMotorSetRef(pitch_motor, 10);
-            }
+            pitch_cd_ms= DWT_GetTimeline_ms()/1000.0f;
+            pitch_cd_ms = 15.0f*sinf(pitch_cd_ms);
+                LKMotorSetRef(pitch_motor, pitch_cd_ms);
             
             //ToDO：巡航目标要线性变换扫描，不能上下跳变
             //注：陀螺仪对应G[0]Pitch,G[1]Roll,G[2]YAW 上正下负
             //Pitch 最高25 最低-20
-
         default:
             break;
 }
