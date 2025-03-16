@@ -190,7 +190,7 @@ void PitchTask(){
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
             // LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
-            pitch_cd_ms= DWT_GetTimeline_ms()/1000.0f;
+            pitch_cd_ms= DWT_GetTimeline_ms()/2000.0f;
             pitch_cd_ms = 15.0f*sinf(pitch_cd_ms);
                 LKMotorSetRef(pitch_motor, pitch_cd_ms);
             
