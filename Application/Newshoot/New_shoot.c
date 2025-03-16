@@ -26,12 +26,12 @@ static float loader_set_angle = 0;
 void FrictionInit(){
     Motor_Init_Config_s friction_config = {
         .can_init_config = {
-            .can_handle = &hcan2,
+            .can_handle = &hcan1,
             
         },
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 25, // 20
+                .Kp            = 20, // 20
                 .Ki            = 1,  // 1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
@@ -56,13 +56,14 @@ void FrictionInit(){
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
         },
         .motor_type = M3508};
-    friction_config.can_init_config.tx_id = 1,
+    friction_config.can_init_config.tx_id = 2,
+    friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     friction_l                            = DJIMotorInit(&friction_config);
 
-    friction_config.can_init_config.tx_id                             = 2; // 右摩擦轮,改txid和方向就行
-    friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    friction_config.can_init_config.tx_id                             = 1; // 右摩擦轮,改txid和方向就行
+    friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
     friction_r                                                        = DJIMotorInit(&friction_config);
-     shoot_sub = SubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
+    shoot_sub = SubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
 }
 void FrictionTask(){
     // 从cmd获取控制数据
