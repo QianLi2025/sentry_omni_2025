@@ -4,6 +4,7 @@
 #include "crc_ref.h"
 #include "daemon.h"
 #include <math.h>
+#include "referee_protocol.h"
 
 static Navigation_Instance *navigation_instance; //用于和导航通信的串口实例
 static uint8_t *nav_recv_buff __attribute__((unused));
@@ -44,9 +45,27 @@ extern uint16_t CRC_INIT;
  * @param recv
  * @param rx_buff
  */
-static void RecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
+static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
 {
-    // /* 使用memcpy接收浮点型小数 */
+    
+    recv->naving = rx_buff[1];
+    recv->poing = rx_buff[2];
+    memcpy(&recv->nav_x, &rx_buff[3], 4);
+    memcpy(&recv->nav_y, &rx_buff[7], 4);
+    memcpy(&recv->sentry_decision, &rx_buff[11], 4);
+//  JudgeSend(&recv->sentry_decision,Datacmd_Decision);
+    memcpy(&recv->yaw_target, &rx_buff[15], 4);
+    
+    recv->R_tracking = rx_buff[19];
+    recv->R_shoot = rx_buff[20];
+    memcpy(&recv->yaw_From_R, &rx_buff[21], 4); //485传来的yaw的目标值，需要发送到上板
+    memcpy(&recv->R_yaw, &rx_buff[25], 4);
+    memcpy(&recv->R_pitch, &rx_buff[29], 4);
+    recv->target_shijue = rx_buff[33];
+    
+    memcpy(&recv->Flag_turn, &rx_buff[34], 1);
+    memcpy(&recv->Flag_headforward, &rx_buff[35], 1);
+   // /* 使用memcpy接收浮点型小数 */
     // recv->is_tracking = rx_buff[1];
 
     // recv->is_shooting = rx_buff[2];
@@ -127,7 +146,15 @@ static void NavigationOfflineCallback(void *id)
 // {
 //     vision_instance->send_data->is_reset = is_reset;
 // }
+void NavigationSetRefreeDate()
+{
 
+}
+
+void NavigationSetGameDate()
+{
+
+}
 /**
  * @brief 发送数据处理函数
  *
@@ -137,6 +164,7 @@ static void NavigationOfflineCallback(void *id)
  */
 static void NaviSendProcess(Navigation_Send_s *send, uint8_t *tx_buff)
 {
+    int tarforwrd = 0;
     // /* 发送帧头，目标颜色，是否重置等数据 */
     // tx_buff[0] = send->header;
     // tx_buff[1] = send->is_energy_mode;
@@ -151,11 +179,39 @@ static void NaviSendProcess(Navigation_Send_s *send, uint8_t *tx_buff)
     // memcpy(&tx_buff[12], &send->pitch, 4);
     // memcpy(&tx_buff[16], &send->bullet_speed, 4);
     // memcpy(&tx_buff[20], &send->yaw_speed, 4);
+	tx_buff[0] = send->header;
+	tx_buff[1] = send->Flag_progress;
+	tx_buff[2] = send->color;
+	memcpy(&tx_buff[3], &send->projectile_allowance_17mm, 2);
+	memcpy(&tx_buff[5], &send->remaining_gold_coin, 2);
+	memcpy(&tx_buff[7], &send->supply_robot_id, 1);
+	memcpy(&tx_buff[8], &send->supply_projectile_num, 1);
+	memcpy(&tx_buff[9], &send->red_7_HP, 2);
+	memcpy(&tx_buff[11], &send->red_outpost_HP, 2);
+	memcpy(&tx_buff[13], &send->red_base_HP, 2);
+	memcpy(&tx_buff[15], &send->blue_7_HP, 2);
+	memcpy(&tx_buff[17], &send->blue_outpost_HP, 2);
+	memcpy(&tx_buff[19], &send->blue_base_HP, 2);
+	memcpy(&tx_buff[21], &send->yaw12, 8);
+	memcpy(&tx_buff[29], &send->R_yaw, 4);
+	memcpy(&tx_buff[33], &send->R_pitch, 4);
+	memcpy(&tx_buff[37], &send->tar_pos_x, 4);
+	memcpy(&tx_buff[41], &send->tar_pos_y, 4);
+	memcpy(&tx_buff[45], &send->cmd_key, 1);
+	memcpy(&tx_buff[46], &send->bullet_speed, 4);
+	memcpy(&tx_buff[50], &send->Flag_start, 1);
+	memcpy(&tx_buff[51], &send->Flag_off_war, 1);
+	memcpy(&tx_buff[52], &send->R_yaw_speed, 4);
+	memcpy(&tx_buff[56], &tarforwrd,4); //前进角度
+//	memcpy(&tx_buff[60], &Tx_nav.is_rune,1);
+//	memcpy(&tx_buff[61], &Tx_nav.is_reset,1);
+//	memcpy(&tx_buff[62], &Tx_nav.R_roll,4);
 
-    /* 发送校验位 */
-    send->checksum = Get_CRC16_Check_Sum(&tx_buff[0], NAVIGATION_SEND_SIZE - 3u, CRC_INIT);
-    memcpy(&tx_buff[NAVIGATION_SEND_SIZE - 3u], &send->checksum, 2);
-    memcpy(&tx_buff[NAVIGATION_SEND_SIZE - 1u], &send->tail, 1);
+    /*发送校验位*/
+	send->checksum = Get_CRC16_Check_Sum(tx_buff,  NAVIGATION_SEND_SIZE - 3u, CRC_INIT); //size 60+3
+	memcpy(&tx_buff[NAVIGATION_SEND_SIZE - 3u], &send->checksum, 2);
+	tx_buff[NAVIGATION_SEND_SIZE - 1u] = send->ending;
+	
 }
 
 /**
@@ -206,15 +262,16 @@ Navigation_Send_s *NavigationSendRegister(Navigation_Send_Init_Config_s *send_co
  */
 static void NaviDecodeVision(uint16_t var)
 {
+
+        
     UNUSED(var); // 仅为了消除警告
     if (nav_recv_buff[0] == navigation_instance->recv_data->header) {
         // 读取视觉数据
-        
         /* 接收校验位 */
         memcpy(&navigation_instance->recv_data->checksum, &nav_recv_buff[NAVIGATION_RECV_SIZE - 2], 2);
         if (navigation_instance->recv_data->checksum == Get_CRC16_Check_Sum(nav_recv_buff, NAVIGATION_RECV_SIZE - 2, CRC_INIT)) {
             DaemonReload(navigation_daemon_instance);
-            RecvProcess(navigation_instance->recv_data, nav_recv_buff);
+            NaviRecvProcess(navigation_instance->recv_data, nav_recv_buff);
         } else {
             memset(navigation_instance->recv_data, 0, sizeof(Navigation_Recv_s));
         }

@@ -19,8 +19,8 @@
 #define NAVIGATION_SEND_HEADER 0x5Au // 视觉发送数据帧头
 #define NAVIGATION_SEND_TAIL   0xAAu // 视觉发送数据帧尾
 
-#define NAVIGATION_RECV_SIZE   17u // 当前为固定值,12字节
-#define NAVIGATION_SEND_SIZE   27u
+#define NAVIGATION_RECV_SIZE   38u // 当前为固定值,12字节 header 1 +date 35 +checksum 2
+#define NAVIGATION_SEND_SIZE   63u // header 1 + date 59 + checksum 2 + ending 1
 
 // #pragma pack(1) // 1字节对齐
 
