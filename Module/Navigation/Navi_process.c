@@ -209,6 +209,7 @@ static void NaviDecodeVision(uint16_t var)
     UNUSED(var); // 仅为了消除警告
     if (nav_recv_buff[0] == navigation_instance->recv_data->header) {
         // 读取视觉数据
+        
         /* 接收校验位 */
         memcpy(&navigation_instance->recv_data->checksum, &nav_recv_buff[NAVIGATION_RECV_SIZE - 2], 2);
         if (navigation_instance->recv_data->checksum == Get_CRC16_Check_Sum(nav_recv_buff, NAVIGATION_RECV_SIZE - 2, CRC_INIT)) {

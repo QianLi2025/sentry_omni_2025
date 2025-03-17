@@ -87,6 +87,8 @@ typedef enum {
     CHASSIS_MEDIUM,         // 底盘转速中等
     CHASSIS_SLOW,           // 底盘转速慢
     CHASSIS_FOLLOW_GIMBAL_YAW,
+    CHASSIS_FIXED_ANGULAR_RATE, //小陀螺
+    CHASSIS_DIRECT_GIMBAL_WZ,   //底盘云台分离    
 } chassis_mode_e;
 
 typedef enum {
