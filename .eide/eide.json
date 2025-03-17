@@ -37,7 +37,9 @@
   },
   "targets": {
     "Debug": {
-      "excludeList": [],
+      "excludeList": [
+        "Module/Navigation"
+      ],
       "toolchain": "GCC",
       "compileConfig": {
         "cpuType": "Cortex-M4",

@@ -1,43 +1,42 @@
-#include "miniPC_process.h"
+#include "Navi_process.h"
 #include "string.h"
 #include "robot_def.h"
 #include "crc_ref.h"
 #include "daemon.h"
 #include <math.h>
 
-static Vision_Instance *vision_instance; // 用于和视觉通信的串口实例
-
-static uint8_t *vis_recv_buff __attribute__((unused));
-static Daemon_Instance *vision_daemon_instance;
+static Navigation_Instance *navigation_instance; //用于和导航通信的串口实例
+static uint8_t *nav_recv_buff __attribute__((unused));
+static Daemon_Instance *navigation_daemon_instance;
 // 全局变量区
 extern uint16_t CRC_INIT;
 
 // 标准化角度到0到360度范围内
-static float StandardizeAngle(float angle)
-{
-    float mod_angle = fmod(angle, 360.f);
-    if (mod_angle < 0) {
-        mod_angle += 360.0;
-    }
-    return mod_angle;
-}
+// static float StandardizeAngle(float angle)
+// {
+//     float mod_angle = fmod(angle, 360.f);
+//     if (mod_angle < 0) {
+//         mod_angle += 360.0;
+//     }
+//     return mod_angle;
+// }
 
 // 计算并返回新的 total_angle，使其接近目标角度
-static float AdjustNearestAngle(float total_angle, float target_angle)
-{
-    // 标准化当前角度
-    float standard_current_angle = StandardizeAngle(total_angle);
-    // 计算角度差
-    float delta_angle = target_angle - standard_current_angle;
-    // 调整角度差到 -180 到 180 范围内
-    if (delta_angle > 180.f) {
-        delta_angle -= 360.f;
-    } else if (delta_angle < -180.f) {
-        delta_angle += 360.f;
-    }
-    // 计算新的目标 totalangle
-    return total_angle + delta_angle;
-}
+// static float AdjustNearestAngle(float total_angle, float target_angle)
+// {
+//     // 标准化当前角度
+//     float standard_current_angle = StandardizeAngle(total_angle);
+//     // 计算角度差
+//     float delta_angle = target_angle - standard_current_angle;
+//     // 调整角度差到 -180 到 180 范围内
+//     if (delta_angle > 180.f) {
+//         delta_angle -= 360.f;
+//     } else if (delta_angle < -180.f) {
+//         delta_angle += 360.f;
+//     }
+//     // 计算新的目标 totalangle
+//     return total_angle + delta_angle;
+// }
 
 /**
  * @brief 处理视觉传入的数据
@@ -45,7 +44,7 @@ static float AdjustNearestAngle(float total_angle, float target_angle)
  * @param recv
  * @param rx_buff
  */
-static void RecvProcess(Vision_Recv_s *recv, uint8_t *rx_buff)
+static void RecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
 {
     /* 使用memcpy接收浮点型小数 */
     recv->is_tracking = rx_buff[1];
@@ -68,7 +67,7 @@ static void RecvProcess(Vision_Recv_s *recv, uint8_t *rx_buff)
  *
  * @param id vision_usart_instance的地址,此处没用.
  */
-static void VisionOfflineCallback(void *id)
+static void NavigationOfflineCallback(void *id)
 {
     // memset(vision_instance->recv_data + 1, 0, sizeof(Vision_Recv_s) - 1);
 #ifdef VISION_USE_UART
@@ -136,7 +135,7 @@ void VisionSetReset(uint8_t is_reset)
  * @param tx_buff 发送缓冲区
  *
  */
-static void SendProcess(Vision_Send_s *send, uint8_t *tx_buff)
+static void NaviSendProcess(Navigation_Send_s *send, uint8_t *tx_buff)
 {
     /* 发送帧头，目标颜色，是否重置等数据 */
     tx_buff[0] = send->header;
@@ -167,10 +166,10 @@ static void SendProcess(Vision_Send_s *send, uint8_t *tx_buff)
  * @param recv_config
  * @return Vision_Recv_s*
  */
-Vision_Recv_s *VisionRecvRegister(Vision_Recv_Init_Config_s *recv_config)
+Navigation_Recv_s *NavigationRecvRegister(Navigation_Recv_Init_Config_s *recv_config)
 {
-    Vision_Recv_s *recv_data = (Vision_Recv_s *)malloc(sizeof(Vision_Recv_s));
-    memset(recv_data, 0, sizeof(Vision_Recv_s));
+    Navigation_Recv_s *recv_data = (Navigation_Recv_s *)malloc(sizeof(Navigation_Recv_s));
+    memset(recv_data, 0, sizeof(Navigation_Recv_s));
 
     recv_data->header = recv_config->header;
 
@@ -183,13 +182,13 @@ Vision_Recv_s *VisionRecvRegister(Vision_Recv_Init_Config_s *recv_config)
  * @param send_config
  * @return Vision_Send_s*
  */
-Vision_Send_s *VisionSendRegister(Vision_Send_Init_Config_s *send_config)
+Navigation_Send_s *NavigationSendRegister(Navigation_Send_Init_Config_s *send_config)
 {
-    Vision_Send_s *send_data = (Vision_Send_s *)malloc(sizeof(Vision_Send_s));
-    memset(send_data, 0, sizeof(Vision_Send_s));
+    Navigation_Send_s *send_data = (Navigation_Send_s *)malloc(sizeof(Navigation_Send_s));
+    memset(send_data, 0, sizeof(Navigation_Send_s));
 
     send_data->header       = send_config->header;
-    send_data->detect_color = send_config->detect_color;
+    // send_data->detect_color = send_config->detect_color;
     send_data->tail         = send_config->tail;
     return send_data;
 }
@@ -297,34 +296,34 @@ static void DecodeVision(uint16_t var)
  * @param init_config
  * @return Vision_Recv_s*
  */
-Vision_Recv_s *VisionInit(UART_HandleTypeDef *video_usart_handle)
+Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *navi_usart_handle)
 {
-    UNUSED(video_usart_handle); // 仅为了消除警告
-    vision_instance = (Vision_Instance *)malloc(sizeof(Vision_Instance));
-    memset(vision_instance, 0, sizeof(Vision_Instance));
-    Vision_Recv_Init_Config_s recv_config = {
-        .header = VISION_RECV_HEADER,
+    UNUSED(navi_usart_handle); // 仅为了消除警告
+    navigation_instance = (Navigation_Instance *)malloc(sizeof(Navigation_Instance));
+    memset(navigation_instance, 0, sizeof(Navigation_Instance));
+    Navigation_Recv_Init_Config_s recv_config = {
+        .header = NAVIGATION_RECV_HEADER,
     };
 
     USB_Init_Config_s conf     = {.rx_cbk = DecodeVision};
-    vis_recv_buff              = USBInit(conf);
-    recv_config.header         = VISION_RECV_HEADER;
-    vision_instance->recv_data = VisionRecvRegister(&recv_config);
+    nav_recv_buff              = USBInit(conf);
+    recv_config.header         = NAVIGATION_RECV_HEADER;
+    navigation_instance->recv_data = NavigationRecvRegister(&recv_config);
 
-    Vision_Send_Init_Config_s send_config = {
-        .header       = VISION_SEND_HEADER,
-        .detect_color = VISION_DETECT_COLOR_RED,
-        .tail         = VISION_SEND_TAIL,
+    Navigation_Send_Init_Config_s send_config = {
+        .header       = NAVIGATION_SEND_HEADER,
+        // .detect_color = VISION_DETECT_COLOR_RED,
+        .tail         = NAVIGATION_SEND_TAIL,
     };
-    vision_instance->send_data = VisionSendRegister(&send_config);
+    navigation_instance->send_data = NavigationSendRegister(&send_config);
     // 为master process注册daemon,用于判断视觉通信是否离线
     Daemon_Init_Config_s daemon_conf = {
-        .callback     = VisionOfflineCallback, // 离线时调用的回调函数,会重启串口接收
+        .callback     = NavigationOfflineCallback, // 离线时调用的回调函数,会重启串口接收
         .owner_id     = NULL,
         .reload_count = 5, // 50ms
     };
-    vision_daemon_instance = DaemonRegister(&daemon_conf);
-    return vision_instance->recv_data;
+    navigation_daemon_instance = DaemonRegister(&daemon_conf);
+    return navigation_instance->recv_data;
 }
 
 /**
@@ -333,11 +332,11 @@ Vision_Recv_s *VisionInit(UART_HandleTypeDef *video_usart_handle)
  * @param send 待发送数据
  *
  */
-void VisionSend()
+void NavigationSend()
 {
-    static uint8_t send_buff[VISION_SEND_SIZE];
-    SendProcess(vision_instance->send_data, send_buff);
-    USBTransmit(send_buff, VISION_SEND_SIZE);
+    static uint8_t send_buff[NAVIGATION_SEND_SIZE];
+    NaviSendProcess(navigation_instance->send_data, send_buff);
+    USBTransmit(send_buff, NAVIGATION_SEND_SIZE);
 }
 
 #endif

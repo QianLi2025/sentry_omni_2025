@@ -53,9 +53,9 @@ void YawInit (){
                 .IntegralLimit = 500,
                 .MaxOut        = 20000,
             },
-            .other_angle_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data.YawTotalAngle,
-            // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
-            .other_speed_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data.Gyro[2],
+            // .other_angle_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data.YawTotalAngle,
+            // // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
+            // .other_speed_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data.Gyro[2],
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
@@ -89,15 +89,15 @@ void YawTask(){
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             DJIMotorEnable(yaw_motor);
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
-            DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.YawTotalAngle);
-            DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.Gyro[2]);
+            // DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.YawTotalAngle);
+            // DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.Gyro[2]);
             DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             break;
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
             DJIMotorEnable(yaw_motor);
-            DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.YawTotalAngle);
-            DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.Gyro[2]);
+            // DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.YawTotalAngle);
+            // DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED, &gimbal_cmd_recv.gimbal_imu_data.Gyro[2]);
             DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
             DJIMotorSetRef(yaw_motor, 1);
         default:
@@ -190,7 +190,7 @@ void PitchTask(){
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
             // LKMotorChangeFeed(pitch_motor, ANGLE_LOOP, OTHER_FEED, &gimba_IMU_data->Pitch);
-            pitch_cd_ms= DWT_GetTimeline_ms()/1000.0f;
+            pitch_cd_ms= DWT_GetTimeline_ms()/2000.0f;
             pitch_cd_ms = 15.0f*sinf(pitch_cd_ms);
                 LKMotorSetRef(pitch_motor, pitch_cd_ms);
             
