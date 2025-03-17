@@ -31,8 +31,8 @@ void FrictionInit(){
         },
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 20, // 20
-                .Ki            = 1,  // 1
+                .Kp            = 15, // 20
+                .Ki            = 1.5,  // 1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
                 .IntegralLimit = 10000,
@@ -99,7 +99,7 @@ void FrictionTask(){
 void LoaderInit(){
     Motor_Init_Config_s loader_config = {
         .can_init_config = {
-            .can_handle = &hcan2,
+            .can_handle = &hcan1,
             .tx_id      = 1,
         },
         .controller_param_init_config = {
