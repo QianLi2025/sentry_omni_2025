@@ -57,7 +57,8 @@ void RobotInit(void)
     // ChassisInit();
 #endif
     // 测试代码
-    //TESTInit();
+    TESTInit();
+    
 
     // rtos创建任务
     OSTaskInit();
@@ -72,8 +73,8 @@ void RobotInit(void)
 void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-    //TESTTask();
-    GimbalCMDTask();
+    TESTTask();
+    //GimbalCMDTask();
     //  PitchTask();
     // FrictionTask();
 #endif

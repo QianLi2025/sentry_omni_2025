@@ -8,7 +8,7 @@
 #include "remote.h"
 #include "Navi_process.h"
 
-#define K_speedcalc 1
+#define K_speedcalc 100
 
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left right forward back
 /* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
@@ -71,10 +71,10 @@ void testChassisInit()
 
 void ChassisCalc(int vx,int vy,int wz)
 {
-    vt_lf = vx+vy-wz;
-    vt_rf = vx-vy+wz;
-    vt_lb = vx-vy-wz;
-    vt_rb = vx+vy+wz;
+    vt_lf = vx+vy+wz;
+    vt_rf = -vx+vy+wz;
+    vt_lb = vx-vy+wz;
+    vt_rb = -vx-vy-wz;
 
     DJIMotorSetRef(motor_lf, vt_lf * K_speedcalc);
     DJIMotorSetRef(motor_rf, vt_rf * K_speedcalc);
@@ -96,7 +96,7 @@ void TESTTask(void)
    {
     chassis_vx = 0;
     chassis_vy = 0;
-    chassis_wz = 0;
+    chassis_wz = remote->rc.dial * 0.5f;
    }
    else if (switch_is_mid(remote[TEMP].rc.switch_left))
    {
