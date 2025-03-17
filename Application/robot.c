@@ -39,7 +39,7 @@ void RobotInit(void)
     // BSP初始化
     BSPInit();
     // 应用层初始化
-#if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
+#if defined(GIMBAL_BOARD)
     //RobotCMDInit();
     GimbalCMDInit();
     //  PitchInit();

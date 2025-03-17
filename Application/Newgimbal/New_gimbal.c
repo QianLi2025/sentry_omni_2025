@@ -115,17 +115,16 @@ void YawTask(){
 # if defined(GIMBAL_BOARD)
 void PitchInit(){
     gimba_IMU_data = INS_Init();
-    gimba_IMU_data = INS_Init();
     Motor_Init_Config_s pitch_config = {
         .can_init_config = {
             .can_handle = &hcan1,
-            .tx_id      = 4,
+            .tx_id      = 1,
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 2,
+                .Kp                = 0.6,
                 .Ki                = 0,
-                .Kd                = 2,
+                .Kd                = 0.0085,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.1,
@@ -135,7 +134,7 @@ void PitchInit(){
                 .Output_LPF_RC     = 0.05,
             },
             .speed_PID = {
-                .Kp            = 20,
+                .Kp            = 150,
                 .Ki            = 10,
                 .Kd            = 0,
                 .CoefB         = 0.6,
@@ -173,6 +172,7 @@ void PitchTask(){
     pitch_current     = gimba_IMU_data->Pitch;
     pitch_current     = gimba_IMU_data->Pitch;
     pitch_motor_angle = pitch_motor->measure.total_angle;
+    gimbal_cmd_recv.gimbal_mode=GIMBAL_CRUISE_MODE;
     switch (gimbal_cmd_recv.gimbal_mode) {
         // 停止
         case GIMBAL_ZERO_FORCE:

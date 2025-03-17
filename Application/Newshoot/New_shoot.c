@@ -31,8 +31,8 @@ void FrictionInit(){
         },
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 20, // 20
-                .Ki            = 1,  // 1
+                .Kp            = 15, // 20
+                .Ki            = 1.5,  // 1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
                 .IntegralLimit = 10000,

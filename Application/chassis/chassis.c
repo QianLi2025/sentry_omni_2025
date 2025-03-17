@@ -18,10 +18,10 @@
 static CAN_Comm_Instance *chasiss_can_comm; // 用于底盘的CAN通信
 attitude_t *Chassis_IMU_data;
 #endif // CHASSIS_BOARD
-#ifdef ONE_BOARD
+
 static Publisher_t *chassis_pub;  // 用于发布底盘的数据
 static Subscriber_t *chassis_sub; // 用于订阅底盘的控制命令
-#endif
+
 static Chassis_Ctrl_Cmd_s chassis_cmd_recv;                  // 底盘接收到的控制命令
 __unused static Chassis_Upload_Data_s chassis_feedback_data; // 底盘回传的反馈数据
 // static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
@@ -55,15 +55,15 @@ void ChassisInit()
         .can_init_config.can_handle   = &hcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 4.7, // 4.5
-                .Ki            = 0.2, // 0
+                .Kp            = 0.8, // 4.5
+                .Ki            = 0, // 0
                 .Kd            = 0, // 0
                 .IntegralLimit = 5000,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut        = 12000,
             },
             .current_PID = {
-                .Kp            = 0.7, // 0.4
+                .Kp            = 0.4, // 0.4
                 .Ki            = 0,  // 0
                 .Kd            = 0,
                 .IntegralLimit = 3000,
@@ -132,10 +132,10 @@ void ChassisInit()
     chasiss_can_comm = CANCommInit(&comm_conf); // can comm初始化
 #endif                                          // CHASSIS_BOARD
 
-#ifdef ONE_BOARD // 单板控制整车,则通过pubsub来传递消息
+
     chassis_sub = SubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_pub = PubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
-#endif // ONE_BOARD
+
 }
 
 /**
@@ -170,7 +170,7 @@ static void LimitChassisOutput()
     uint16_t chassis_power_buffer = 0; // 底盘功率缓冲区
     // uint16_t chassis_power        = 0;
     uint16_t chassis_power_limit  = 0;
-    float P_limit                 = 1; // 功率限制系数
+    float P_limit                 = 100; // 功率限制系数
 
     chassis_power_buffer = chassis_cmd_recv.chassis_power_buff;
     chassis_power_limit  = chassis_cmd_recv.chassis_power_limit;
@@ -178,45 +178,45 @@ static void LimitChassisOutput()
     // chassis_power        = referee_data->PowerHeatData.chassis_power;
     // chassis_power_limit  = referee_data->GameRobotState.chassis_power_limit;
 
-    switch (chassis_cmd_recv.super_cap_mode) {
-        case SUPER_CAP_OFF:
-            SuperCapSet(chassis_power_buffer, chassis_power_limit, 2); // 设置超级电容数据
-            break;
-        case SUPER_CAP_ON:
-            SuperCapSet(chassis_power_buffer,chassis_power_limit, 3); // 设置超级电容数据
-            break;
-        default:
-            break;
-    }
+    // switch (chassis_cmd_recv.super_cap_mode) {
+    //     case SUPER_CAP_OFF:
+    //         SuperCapSet(chassis_power_buffer, chassis_power_limit, 2); // 设置超级电容数据
+    //         break;
+    //     case SUPER_CAP_ON:
+    //         SuperCapSet(chassis_power_buffer,chassis_power_limit, 3); // 设置超级电容数据
+    //         break;
+    //     default:
+    //         break;
+    // }
 
-    if (chassis_cmd_recv.super_cap_mode == SUPER_CAP_OFF || super_cap->cap_data.voltage <= 12.f) {
-        // 当电容电量过低时强制关闭超电
-        chassis_cmd_recv.super_cap_mode = SUPER_CAP_OFF;
-        SuperCapSet(chassis_power_buffer, chassis_power_limit, 2);        /*缓冲能量占比环，总体约束*/
-        if (chassis_power_buffer >= 50) {
-            P_limit = 1;
-        } else {
-            P_limit = chassis_power_buffer / 50.f;
-        }
-        // else if (chassis_power_buffer < 50 && chassis_power_buffer >= 40)
-        //     P_limit = 0.9; // 近似于以一个线性来约束比例（为了保守可以调低Plimit，但会影响响应速度）
-        // else if (chassis_power_buffer < 40 && chassis_power_buffer >= 35)
-        //     P_limit = 0.75;
-        // else if (chassis_power_buffer < 35 && chassis_power_buffer >= 30)
-        //     P_limit = 0.5;
-        // else if (chassis_power_buffer < 30 && chassis_power_buffer >= 20)
-        //     P_limit = 0.25;
-        // else if (chassis_power > chassis_power_limit && chassis_power_buffer < 20 && chassis_power_buffer >= 10)
-        //     P_limit = 0.125;
+    // if (chassis_cmd_recv.super_cap_mode == SUPER_CAP_OFF || super_cap->cap_data.voltage <= 12.f) {
+    //     // 当电容电量过低时强制关闭超电
+    //     chassis_cmd_recv.super_cap_mode = SUPER_CAP_OFF;
+    //     SuperCapSet(chassis_power_buffer, chassis_power_limit, 2);        /*缓冲能量占比环，总体约束*/
+    //     if (chassis_power_buffer >= 50) {
+    //         P_limit = 1;
+    //     } else {
+    //         P_limit = chassis_power_buffer / 50.f;
+    //     }
+    //     // else if (chassis_power_buffer < 50 && chassis_power_buffer >= 40)
+    //     //     P_limit = 0.9; // 近似于以一个线性来约束比例（为了保守可以调低Plimit，但会影响响应速度）
+    //     // else if (chassis_power_buffer < 40 && chassis_power_buffer >= 35)
+    //     //     P_limit = 0.75;
+    //     // else if (chassis_power_buffer < 35 && chassis_power_buffer >= 30)
+    //     //     P_limit = 0.5;
+    //     // else if (chassis_power_buffer < 30 && chassis_power_buffer >= 20)
+    //     //     P_limit = 0.25;
+    //     // else if (chassis_power > chassis_power_limit && chassis_power_buffer < 20 && chassis_power_buffer >= 10)
+    //     //     P_limit = 0.125;
         // else if (chassis_power > chassis_power_limit && chassis_power_buffer < 10 && chassis_power_buffer > 0)
         //     P_limit = 0.05;
         // else
         //     P_limit = 0.125;
-    } else {
+    //} else {
         chassis_cmd_recv.super_cap_mode = SUPER_CAP_ON;
         SuperCapSet(chassis_power_buffer, chassis_power_limit, 3); //3开启超电
-        P_limit = 1;
-    }
+        //P_limit = 1;
+    //}
     // ui_data.Chassis_Power_Data.chassis_power_mx = super_cap->cap_data.voltage;
     SuperCapSend(); // 发送超级电容数据
     // 完成功率限制后进行电机参考输入设定
@@ -244,29 +244,33 @@ void ChassisTask()
 {
     // 后续增加没收到消息的处理(双板的情况)
     // 获取新的控制信息
-#ifdef ONE_BOARD
     SubGetMessage(chassis_sub, &chassis_cmd_recv);
-#endif
-#ifdef CHASSIS_BOARD
-    chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
-#endif                                                         // CHASSIS_BOARD                                                    // CHASSIS_BOARD
-    if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE) { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
-        DJIMotorStop(motor_lf);
-        DJIMotorStop(motor_rf);
-        DJIMotorStop(motor_lb);
-        DJIMotorStop(motor_rb);
-    } else { // 正常工作
+
+       
+    // if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE) { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
+    //     DJIMotorStop(motor_lf);
+    //     DJIMotorStop(motor_rf);
+    //     DJIMotorStop(motor_lb);
+    //     DJIMotorStop(motor_rb);
+    // } else { // 正常工作
         DJIMotorEnable(motor_lf);
         DJIMotorEnable(motor_rf);
         DJIMotorEnable(motor_lb);
         DJIMotorEnable(motor_rb);
-    }
+    //}
 
     // 根据控制模式设定旋转速度
     // 根据控制模式设定旋转速度
-    switch (chassis_cmd_recv.chassis_mode) {
-        case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台,单独设置pid
+    switch (chassis_cmd_recv.chassis_mode) 
+    {
+        case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台PID模式
             chassis_cmd_recv.wz = PIDCalculate(&chassis_follow_pid, chassis_cmd_recv.offset_angle, 0);
+            break;
+        case CHASSIS_FIXED_ANGULAR_RATE: // 新增固定角速度模式
+            chassis_cmd_recv.wz = 100.0f; // 示例固定值（单位：度/秒），根据实际需求修改
+            break;
+            case CHASSIS_DIRECT_GIMBAL_WZ: // 直接使用云台原始wz（新增）
+            // 无需计算，直接保留来自云台板的原始wz值
             break;
         default:
             break;
@@ -278,8 +282,8 @@ void ChassisTask()
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     // cos_theta = 0, sin_theta = 1;
-    chassis_vx = chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
-    chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
+    chassis_vx = -chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
+    chassis_vy = -chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
 
     // 根据控制模式进行正运动学解算,计算底盘输出
     MecanumCalculate();
@@ -307,10 +311,8 @@ void ChassisTask()
     // ui_data.loader_mode      = chassis_cmd_recv.loader_mode;
     // ui_data.vision_is_shoot  = chassis_cmd_recv.vision_is_shoot;
     // 推送反馈消息
-#ifdef ONE_BOARD
+
     PubPushMessage(chassis_pub, (void *)&chassis_feedback_data);
-#endif
-#ifdef CHASSIS_BOARD
-    CANCommSend(chasiss_can_comm, (void *)&chassis_feedback_data);
-#endif // CHASSIS_BOARD
+
+
 }
