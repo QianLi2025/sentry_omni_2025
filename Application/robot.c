@@ -41,7 +41,7 @@ void RobotInit(void)
     // 应用层初始化
 #if defined(GIMBAL_BOARD)
     //RobotCMDInit();
-    GimbalCMDInit();
+    // GimbalCMDInit();
     //  PitchInit();
 
     // FrictionInit();
@@ -57,7 +57,7 @@ void RobotInit(void)
     // ChassisInit();
 #endif
     // 测试代码
-     //TESTInit();
+    //TESTInit();
 
     // rtos创建任务
     OSTaskInit();

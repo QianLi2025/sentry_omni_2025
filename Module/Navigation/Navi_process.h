@@ -164,7 +164,7 @@ typedef struct
  * @param recv_config
  * @return Vision_Recv_s*
  */
-Navigation_Recv_s *NaviRecvRegister(Navigation_Recv_Init_Config_s *recv_config);
+Navigation_Recv_s *NavigationRecvRegister(Navigation_Recv_Init_Config_s *recv_config);
 
 /**
  * @brief 用于注册一个视觉发送数据结构体,返回一个视觉发送数据结构体指针
@@ -172,7 +172,7 @@ Navigation_Recv_s *NaviRecvRegister(Navigation_Recv_Init_Config_s *recv_config);
  * @param send_config
  * @return Vision_Send_s*
  */
-Navigation_Send_s *NaviSendRegister(Navigation_Send_Init_Config_s *send_config);
+Navigation_Send_s *NavigationSendRegister(Navigation_Send_Init_Config_s *send_config);
 
 /**
  * @brief 用于注册一个视觉通信模块实例,返回一个视觉接收数据结构体指针
@@ -180,7 +180,7 @@ Navigation_Send_s *NaviSendRegister(Navigation_Send_Init_Config_s *send_config);
  * @param init_config
  * @return Vision_Recv_s*
  */
-Navigation_Recv_s *NaviInit(UART_HandleTypeDef *video_usart_handle);
+Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *video_usart_handle);
 
 /**
  * @brief 发送函数

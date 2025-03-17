@@ -134,7 +134,8 @@
           "Module/super_cap",
           "Module/motor/LKmotor",
           "Application/Newgimbal",
-          "Application/Newshoot"
+          "Application/Newshoot",
+          "Module/Navigation"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

@@ -4,53 +4,113 @@
 // 请不要在其他地方添加测试代码
 // 请不要在这里添加非测试代码
 #include "dmmotor.h"
+#include "DJI_motor.h"
+#include "remote.h"
+#include "Navi_process.h"
 
-static DM_MotorInstance *dm_motor_test;
+#define K_speedcalc 1
+
+static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left right forward back
+/* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
+static float chassis_vx, chassis_vy,chassis_wz;     // 将云台系的速度投影到底盘
+static float vt_lf, vt_rf, vt_lb, vt_rb; // 底盘速度解算后的临时输出,待进行限幅
+
 static uint8_t is_init;
-void TESTInit(void)
+
+static RC_ctrl_t *remote;
+static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
+
+void testChassisInit()
 {
-    // 测试代码初始化
-    Motor_Init_Config_s motor_config = {
-        .can_init_config = {
-            .can_handle = &hcan1,
-            .rx_id      = 0x05, // Master ID
-            .tx_id      = 2,    // MIT模式下为id，速度位置模式为0x100 + id
-        },
+    // 四个轮子的参数一样,改tx_id和反转标志位即可
+    Motor_Init_Config_s chassis_motor_config = {
+        .can_init_config.can_handle   = &hcan1,
         .controller_param_init_config = {
-            .speed_PID   = {.Kp            = 0, // 0?
-                            .Ki            = 0,
-                            .Kd            = 0,
-                            .Improve       = PID_Integral_Limit,
-                            .IntegralLimit = 5,
-                            .MaxOut        = 10},
-            .current_PID = {.Kp            = 0, // 0
-                            .Ki            = 0,
-                            .Kd            = 0,
-                            .Improve       = PID_Integral_Limit,
-                            .IntegralLimit = 5,
-                            .MaxOut        = 10},
+            .speed_PID = {
+                .Kp            = 0.8, // 4.5
+                .Ki            = 0, // 0
+                .Kd            = 0, // 0
+                .IntegralLimit = 5000,
+                .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
+                .MaxOut        = 12000,
+            },
+            .current_PID = {
+                .Kp            = 0.4, // 0.4
+                .Ki            = 0,  // 0
+                .Kd            = 0,
+                .IntegralLimit = 3000,
+                .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
+                .MaxOut        = 15000,
+            },
         },
         .controller_setting_init_config = {
             .angle_feedback_source = MOTOR_FEED,
             .speed_feedback_source = MOTOR_FEED,
-
-            .outer_loop_type    = SPEED_LOOP,
-            .close_loop_type    = SPEED_LOOP | CURRENT_LOOP,
-            .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
+            .outer_loop_type       = SPEED_LOOP,
+            .close_loop_type       = SPEED_LOOP | CURRENT_LOOP,
         },
-        .control_type = MOTOR_CONTROL_POSITION_AND_SPEED,
+        .motor_type = M3508,
     };
-    dm_motor_test = DMMotorInit(&motor_config);
+    //  @todo: 当前还没有设置电机的正反转,仍然需要手动添加reference的正负号,需要电机module的支持,待修改.
+    chassis_motor_config.can_init_config.tx_id                             = 1;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    motor_lf                                                               = DJIMotorInit(&chassis_motor_config);
+
+    chassis_motor_config.can_init_config.tx_id                             = 2;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
+
+    chassis_motor_config.can_init_config.tx_id                             = 3;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
+
+    chassis_motor_config.can_init_config.tx_id                             = 4;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
+}
+
+void ChassisCalc(int vx,int vy,int wz)
+{
+    vt_lf = vx+vy-wz;
+    vt_rf = vx-vy+wz;
+    vt_lb = vx-vy-wz;
+    vt_rb = vx+vy+wz;
+
+    DJIMotorSetRef(motor_lf, vt_lf * K_speedcalc);
+    DJIMotorSetRef(motor_rf, vt_rf * K_speedcalc);
+    DJIMotorSetRef(motor_lb, vt_lb * K_speedcalc);
+    DJIMotorSetRef(motor_rb, vt_rb * K_speedcalc);
+}
+
+void TESTInit(void)
+{
+    testChassisInit();
+    remote = RemoteControlInit(&huart3);
+    navigation_ctrl = NavigationInit(&huart1);
+
 }
 
 void TESTTask(void)
 {
-    if (!is_init) {
-        DMMotorControlInit();
-        DMMotorSetRef(dm_motor_test, dm_motor_test->measure.position);
-        DMMotorSetSpeedRef(dm_motor_test, 0.5);
-        is_init = 1;
-    }
-    // DMMotorSetRef(dm_motor_test, 5);
-    // DMMotorSetSpeedRef(dm_motor_test, 0.5);
+   if(switch_is_down(remote[TEMP].rc.switch_left))
+   {
+    chassis_vx = 0;
+    chassis_vy = 0;
+    chassis_wz = 0;
+   }
+   else if (switch_is_mid(remote[TEMP].rc.switch_left))
+   {
+    chassis_vx = remote->rc.rocker_l1;
+    chassis_vy = remote->rc.rocker_l_;
+    chassis_wz = remote->rc.dial;    
+   }
+   else if (switch_is_up(remote[TEMP].rc.switch_left))
+   {
+    chassis_vx = navigation_ctrl->nav_x;
+    chassis_vy = navigation_ctrl->nav_y;
+   }
+    
+
+   ChassisCalc(chassis_vx,chassis_vy,chassis_wz);
+
 }
