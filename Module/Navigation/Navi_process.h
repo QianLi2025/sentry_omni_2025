@@ -80,8 +80,8 @@ typedef struct
 /* 视觉实例初始化配置结构体 */
 typedef struct
 {
-    Vision_Recv_Init_Config_s recv_config; // 接收数据结构体
-    Vision_Send_Init_Config_s send_config; // 发送数据结构体
+    Navigation_Recv_Init_Config_s recv_config; // 接收数据结构体
+    Navigation_Send_Init_Config_s send_config; // 发送数据结构体
     USART_Init_Config_s usart_config;      // 串口实例结构体
 } Navigation_Init_Config_s;
 
@@ -146,6 +146,7 @@ typedef struct
     uint8_t is_rune;
     uint8_t is_reset;
     float R_roll;  
+    uint8_t tail;
 } Navigation_Send_s;
 #pragma pack() // 取消1字节对齐
 /* 视觉通信模块实例 */
@@ -163,7 +164,7 @@ typedef struct
  * @param recv_config
  * @return Vision_Recv_s*
  */
-Navigation_Recv_s *NaviRecvRegister(Vision_Recv_Init_Config_s *recv_config);
+Navigation_Recv_s *NaviRecvRegister(Navigation_Recv_Init_Config_s *recv_config);
 
 /**
  * @brief 用于注册一个视觉发送数据结构体,返回一个视觉发送数据结构体指针
@@ -171,7 +172,7 @@ Navigation_Recv_s *NaviRecvRegister(Vision_Recv_Init_Config_s *recv_config);
  * @param send_config
  * @return Vision_Send_s*
  */
-Navigation_Send_s *NaviSendRegister(Vision_Send_Init_Config_s *send_config);
+Navigation_Send_s *NaviSendRegister(Navigation_Send_Init_Config_s *send_config);
 
 /**
  * @brief 用于注册一个视觉通信模块实例,返回一个视觉接收数据结构体指针

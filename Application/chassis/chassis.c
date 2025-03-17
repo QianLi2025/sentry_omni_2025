@@ -52,7 +52,7 @@ void ChassisInit()
 {
     // 四个轮子的参数一样,改tx_id和反转标志位即可
     Motor_Init_Config_s chassis_motor_config = {
-        .can_init_config.can_handle   = &hcan1,
+        .can_init_config.can_handle   = &hcan2,
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp            = 4.7, // 4.5
@@ -111,7 +111,7 @@ void ChassisInit()
 
     SuperCap_Init_Config_s super_cap_config = {
         .can_config = {
-            .can_handle = &hcan1,
+            .can_handle = &hcan2,
             .tx_id      = 0x302,
             .rx_id      = 0x301,
         },
