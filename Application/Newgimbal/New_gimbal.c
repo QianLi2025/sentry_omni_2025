@@ -33,9 +33,9 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 2,
+                .Kp                = 1,
                 .Ki                = 0,
-                .Kd                = 2,
+                .Kd                = 0,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
@@ -44,8 +44,8 @@ void YawInit (){
                 .Derivative_LPF_RC = 0.025,
             },
             .speed_PID = {
-                .Kp            = 20,
-                .Ki            = 10,
+                .Kp            = 220,
+                .Ki            = 18,
                 .Kd            = 0,
                 .CoefB         = 0.3,
                 .CoefA         = 0.2,
@@ -79,7 +79,7 @@ void YawTask(){
 
     // @todo:现在已不再需要电机反馈,实际上可以始终使用IMU的姿态数据来作为云台的反馈,yaw电机的offset只是用来跟随底盘
     // 根据控制模式进行电机反馈切换和过渡,视觉模式在robot_cmd模块就已经设置好,gimbal只看yaw_ref和pitch_ref
-    gimbal_cmd_recv.gimbal_mode=GIMBAL_CRUISE_MODE;
+    gimbal_cmd_recv.gimbal_mode=GIMBAL_GYRO_MODE;
     switch (gimbal_cmd_recv.gimbal_mode) {
         
         // 停止
@@ -91,7 +91,7 @@ void YawTask(){
             DJIMotorEnable(yaw_motor);
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
 
-            DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
+            DJIMotorSetRef(yaw_motor, -gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             break;
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
