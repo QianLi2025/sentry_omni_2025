@@ -40,24 +40,21 @@ void RobotInit(void)
     BSPInit();
     // 应用层初始化
 #if defined(GIMBAL_BOARD)
-    //RobotCMDInit();
-    // GimbalCMDInit();
-    //  PitchInit();
+     GimbalCMDInit();
+     PitchInit();
 
-    // FrictionInit();
+     //FrictionInit();
    
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDInit();
-    //  YawInit();
+     YawInit();
     //  LoaderInit();
-    // // YawInit();
-    // // LoaderInit();
-    // ChassisInit();
+     //ChassisInit();
 #endif
     // 测试代码
-    TESTInit();
+    //TESTInit();
     
 
     // rtos创建任务
@@ -73,16 +70,16 @@ void RobotInit(void)
 void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-    TESTTask();
-    //GimbalCMDTask();
-    //  PitchTask();
-    // FrictionTask();
+    //TESTTask();
+    GimbalCMDTask();
+    PitchTask();
+     //FrictionTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDTask();
-    // ChassisTask();
-    //  YawTask();
+    //ChassisTask();
+      YawTask();
     //  LoaderTask();    
 #endif
 }
