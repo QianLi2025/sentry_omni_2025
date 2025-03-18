@@ -138,6 +138,11 @@ void GimbalCMDGet(void) //获取反馈数据
     shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
     gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
+
+    gimbal_cmd_send.gimbal_imu_data_yaw.Yaw =gimbal_fetch_data.gimbal_imu_data_yaw.Yaw;
+    gimbal_cmd_send.gimbal_imu_data_yaw.YawTotalAngle = gimbal_fetch_data.gimbal_imu_data_yaw.YawTotalAngle;
+    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_fetch_data.gimbal_imu_data_yaw.Gyro;
+    gimbal_cmd_send.gimbal_imu_data_yaw.Accel = gimbal_fetch_data.gimbal_imu_data_yaw.Accel;
 }
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 0;

@@ -21,7 +21,7 @@
 #endif
 
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
-#include "gimbal.h"
+// #include "gimbal.h"
 
 #include "shoot.h"
 

@@ -1,4 +1,4 @@
-#include "gimbal.h"
+
 #include "robot_def.h"
 #include "dji_motor.h"
 #include "LK_motor.h"
