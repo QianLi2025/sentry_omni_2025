@@ -37,7 +37,10 @@
   },
   "targets": {
     "Debug": {
-      "excludeList": [],
+      "excludeList": [
+        "Application/gimbal",
+        "Application/shoot"
+      ],
       "toolchain": "GCC",
       "compileConfig": {
         "cpuType": "Cortex-M4",
@@ -132,10 +135,10 @@
           "Application/gimbal",
           "Application/shoot",
           "Module/super_cap",
+          "Module/Navigation",
           "Module/motor/LKmotor",
           "Application/Newgimbal",
-          "Application/Newshoot",
-          "Module/Navigation"
+          "Application/Newshoot"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

@@ -157,7 +157,7 @@ void GimbalCMDSend(void)
     {
     VisionSend();
     hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
-    dead_time      = 10; // 10ms发送一次
+    dead_time      = 50; // 10ms发送一次
     }
 }
 
@@ -182,6 +182,7 @@ void GimbalCMDTask(void)
     }
 
     // 设置视觉发送数据,还需增加加速度和角速度数据
+    /*
     static float yaw, pitch, roll, bullet_speed, yaw_speed;
     yaw          = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
     pitch        = gimbal_fetch_data.gimbal_imu_data.Roll;
@@ -191,7 +192,7 @@ void GimbalCMDTask(void)
 
     VisionSetDetectColor(robot_fetch_data.self_color);
     VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
-
+*/
     // 发送控制信息
     // 推送消息,双板通信,视觉通信等
     // chassis_cmd_send.friction_mode = shoot_cmd_send.friction_mode;

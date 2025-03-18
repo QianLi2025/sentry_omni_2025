@@ -35,6 +35,14 @@ typedef struct
     float Yaw;
     float YawTotalAngle;
 } attitude_t; // 最终解算得到的角度,以及yaw转动的总角度(方便多圈控制)
+typedef struct
+{
+    float Gyro;  // 角速度
+    float Accel; // 加速度
+    // 还需要增加角速度数据
+    float Yaw;
+    float YawTotalAngle;
+} attitude_t_yaw; // 最终解算得到的角度,以及yaw转动的总角度(方便多圈控制)
 
 typedef struct
 {
