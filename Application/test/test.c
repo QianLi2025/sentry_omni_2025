@@ -106,8 +106,8 @@ void TESTTask(void)
    }
    else if (switch_is_up(remote[TEMP].rc.switch_left))
    {
-    chassis_vx = navigation_ctrl->nav_x;
-    chassis_vy = navigation_ctrl->nav_y;
+    chassis_vx = navigation_ctrl->vx;
+    chassis_vy = navigation_ctrl->vy;
    }
     
    

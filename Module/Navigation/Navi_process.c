@@ -5,7 +5,107 @@
 #include "daemon.h"
 #include <math.h>
 #include "referee_protocol.h"
+#include "bsp_dwt.h"
+/*=================================移植begin=====================================*/
+#include "usb_typdef.h"
+#include "custom_typedef.h"
+#include "CRC8_CRC16.h"
 
+#define USB_TASK_CONTROL_TIME 1  // ms
+
+#define USB_OFFLINE_THRESHOLD 100  // ms
+#define USB_CONNECT_CNT 10
+
+// clang-format off
+
+#define SEND_DURATION_Debug       5   // ms
+#define SEND_DURATION_Imu         5   // ms
+#define SEND_DURATION_RobotStateInfo   10  // ms
+#define SEND_DURATION_Event       10  // ms
+#define SEND_DURATION_Pid         10  // ms
+#define SEND_DURATION_AllRobotHp  10  // ms
+#define SEND_DURATION_GameStatus  10  // ms
+#define SEND_DURATION_RobotMotion 10  // ms
+#define SEND_DURATION_GroundRobotPosition   10// ms
+#define SEND_DURATION_RfidStatus   10// ms
+#define SEND_DURATION_RobotStatus  10// ms
+#define SEND_DURATION_JointState   10// ms
+#define SEND_DURATION_Buff         10// ms
+
+// clang-format on
+
+#define USB_RX_DATA_SIZE 256  // byte
+#define USB_RECEIVE_LEN 150   // byte
+#define HEADER_SIZE 4         // byte
+
+
+// #define CheckDurationAndSend(send_name)                                                  \
+//     do {                                                                                 \
+//         if ((HAL_GetTick() - LAST_SEND_TIME.##send_name) >= SEND_DURATION_##send_name) { \
+//             LAST_SEND_TIME.##send_name = HAL_GetTick();                                  \
+//             UsbSend##send_name##Data();                                                  \
+//         }                                                                                \
+//     } while (0)
+
+// // Variable Declarations
+// static uint8_t USB_RX_BUF[USB_RX_DATA_SIZE];
+
+// static const Imu_t * IMU;
+// static const ChassisSpeedVector_t * FDB_SPEED_VECTOR;
+
+// 判断USB连接状态用到的一些变量
+static bool USB_OFFLINE = true;
+static float RECEIVE_TIME = 0;
+static uint32_t LATEST_RX_TIMESTAMP = 0;
+static uint32_t CONTINUE_RECEIVE_CNT = 0;
+
+// // 数据发送结构体
+// // clang-format off
+// static SendDataDebug_s       SEND_DATA_DEBUG;
+// static SendDataImu_s         SEND_DATA_IMU;
+// static SendDataRobotStateInfo_s   SEND_DATA_ROBOT_STATE_INFO;
+// static SendDataEvent_s       SEND_DATA_EVENT;
+// static SendDataPidDebug_s    SEND_DATA_PID;
+// static SendDataAllRobotHp_s  SEND_DATA_ALL_ROBOT_HP;
+// static SendDataGameStatus_s  SEND_DATA_GAME_STATUS;
+// static SendDataRobotMotion_s SEND_ROBOT_MOTION_DATA;
+// static SendDataGroundRobotPosition_s SEND_GROUND_ROBOT_POSITION_DATA;
+// static SendDataRfidStatus_s  SEND_RFID_STATUS_DATA;
+// static SendDataRobotStatus_s SEND_ROBOT_STATUS_DATA;
+// static SendDataJointState_s  SEND_JOINT_STATE_DATA;
+// static SendDataBuff_s        SEND_BUFF_DATA;
+
+// clang-format on
+
+// 数据接收结构体
+static ReceiveDataRobotCmd_s RECEIVE_ROBOT_CMD_DATA;
+static ReceiveDataPidDebug_s RECEIVE_PID_DEBUG_DATA;
+static ReceiveDataVirtualRc_s RECEIVE_VIRTUAL_RC_DATA;
+
+// 机器人控制指令数据
+RobotCmdData_t ROBOT_CMD_DATA;
+static RC_ctrl_t VIRTUAL_RC_CTRL;
+
+// 发送数据间隔时间
+typedef struct
+{
+    uint32_t Debug;
+    uint32_t Imu;
+    uint32_t RobotStateInfo;
+    uint32_t Event;
+    uint32_t Pid;
+    uint32_t AllRobotHp;
+    uint32_t GameStatus;
+    uint32_t RobotMotion;
+    uint32_t GroundRobotPosition;
+    uint32_t RfidStatus;
+    uint32_t RobotStatus;
+    uint32_t JointState;
+    uint32_t Buff;
+} LastSendTime_t;
+static LastSendTime_t LAST_SEND_TIME;
+
+/*================================================移植end====================================*/
 static Navigation_Instance *navigation_instance; //用于和导航通信的串口实例
 static uint8_t *nav_recv_buff __attribute__((unused));
 static Daemon_Instance *navigation_daemon_instance;
@@ -38,7 +138,6 @@ extern uint16_t CRC_INIT;
 //     // 计算新的目标 totalangle
 //     return total_angle + delta_angle;
 // }
-
 /**
  * @brief 处理视觉传入的数据
  *
@@ -47,37 +146,111 @@ extern uint16_t CRC_INIT;
  */
 static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
 {
-    
-    recv->naving = rx_buff[1];
-    recv->poing = rx_buff[2];
-    memcpy(&recv->nav_x, &rx_buff[3], 4);
-    memcpy(&recv->nav_y, &rx_buff[7], 4);
-    memcpy(&recv->sentry_decision, &rx_buff[11], 4);
-//  JudgeSend(&recv->sentry_decision,Datacmd_Decision);
-    memcpy(&recv->yaw_target, &rx_buff[15], 4);
-    
-    recv->R_tracking = rx_buff[19];
-    recv->R_shoot = rx_buff[20];
-    memcpy(&recv->yaw_From_R, &rx_buff[21], 4); //485传来的yaw的目标值，需要发送到上板
-    memcpy(&recv->R_yaw, &rx_buff[25], 4);
-    memcpy(&recv->R_pitch, &rx_buff[29], 4);
-    recv->target_shijue = rx_buff[33];
-    
-    memcpy(&recv->Flag_turn, &rx_buff[34], 1);
-    memcpy(&recv->Flag_headforward, &rx_buff[35], 1);
-   // /* 使用memcpy接收浮点型小数 */
-    // recv->is_tracking = rx_buff[1];
+    // static uint32_t len = USB_RECEIVE_LEN;
+    uint8_t * rx_data_start_address = rx_buff;  // 接收数据包时存放于缓存区的起始位置
+    uint8_t * rx_data_end_address;  // 接收数据包时存放于缓存区的结束位置
+    uint8_t * sof_address = rx_buff;
 
-    // recv->is_shooting = rx_buff[2];
-    // memcpy(&recv->yaw, &rx_buff[3], 4);
-    // memcpy(&recv->pitch, &rx_buff[7], 4);
-    // memcpy(&recv->distance, &rx_buff[11], 4);
+    // 计算数据包的结束位置
+    rx_data_end_address = rx_data_start_address + USB_RECEIVE_LEN;
+    // 读取数据
+    // USB_Receive(rx_data_start_address, &len);  // Read data into the buffer
 
-    // /* 视觉数据处理 */
-    // float yaw_total  = vision_instance->send_data->yaw; // 保存当前总角度
-    // float yaw_target = recv->yaw;
-    // recv->yaw        = AdjustNearestAngle(yaw_total, yaw_target);
+    while (sof_address <= rx_data_end_address) {  // 解析缓冲区中的所有数据包
+        // 寻找帧头位置
+        while (*(sof_address) != RECEIVE_SOF && (sof_address <= rx_data_end_address)) {
+            sof_address++;
+        }
+        // 判断是否超出接收数据范围
+        if (sof_address > rx_data_end_address) {
+            break;  //退出循环
+        }
+        // 检查CRC8校验
+        bool crc8_ok = verify_CRC8_check_sum(sof_address, HEADER_SIZE);
+        if (crc8_ok) {
+            uint8_t data_len = sof_address[1];
+            uint8_t data_id = sof_address[2];
+            // 检查整包CRC16校验 4: header size, 2: crc16 size
+            bool crc16_ok = verify_CRC16_check_sum(sof_address, 4 + data_len + 2);
+            if (crc16_ok) {
+                switch (data_id) {
+                    case ROBOT_CMD_DATA_RECEIVE_ID: {
+                        memcpy(&RECEIVE_ROBOT_CMD_DATA, sof_address, sizeof(ReceiveDataRobotCmd_s));
+                    } break;
+                    case PID_DEBUG_DATA_RECEIVE_ID: {
+                        memcpy(&RECEIVE_PID_DEBUG_DATA, sof_address, sizeof(ReceiveDataPidDebug_s));
+                    } break;
+                    case VIRTUAL_RC_DATA_RECEIVE_ID: {
+                        memcpy(&RECEIVE_VIRTUAL_RC_DATA, sof_address, sizeof(ReceiveDataVirtualRc_s));
+                    } break;
+                    default:
+                        break;
+                }
+                if (*((uint32_t *)(&sof_address[4])) > LATEST_RX_TIMESTAMP) {
+                    LATEST_RX_TIMESTAMP = *((uint32_t *)(&sof_address[4]));
+                    RECEIVE_TIME = DWT_GetTimeline_ms();
+                }
+            }
+            sof_address += (data_len + HEADER_SIZE + 2);
+        } else {  //CRC8校验失败，移动到下一个字节
+            sof_address++;
+        }
+    }
+    // 更新下一次接收数据的起始位置
+    if (sof_address > rx_data_start_address + USB_RECEIVE_LEN) {
+        // 缓冲区中没有剩余数据，下次接收数据的起始位置为缓冲区的起始位置
+        rx_data_start_address = nav_recv_buff[0];
+    } else {
+        uint16_t remaining_data_len = USB_RECEIVE_LEN - (sof_address - rx_data_start_address);
+        // 缓冲区中有剩余数据，下次接收数据的起始位置为缓冲区中剩余数据的起始位置
+        rx_data_start_address = nav_recv_buff[0] + remaining_data_len;
+        // 将剩余数据移到缓冲区的起始位置
+        memcpy(nav_recv_buff[0], sof_address, remaining_data_len);
+    }
+
+    recv->vx = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vx;
+    recv->vy = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vy;
+    recv->wz = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.wz;
 }
+// /**
+//  * @brief 处理视觉传入的数据
+//  *
+//  * @param recv
+//  * @param rx_buff
+//  */
+// static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
+// {
+    
+//     recv->naving = rx_buff[1];
+//     recv->poing = rx_buff[2];
+//     memcpy(&recv->nav_x, &rx_buff[3], 4);
+//     memcpy(&recv->nav_y, &rx_buff[7], 4);
+//     memcpy(&recv->sentry_decision, &rx_buff[11], 4);
+// //  JudgeSend(&recv->sentry_decision,Datacmd_Decision);
+//     memcpy(&recv->yaw_target, &rx_buff[15], 4);
+    
+//     recv->R_tracking = rx_buff[19];
+//     recv->R_shoot = rx_buff[20];
+//     memcpy(&recv->yaw_From_R, &rx_buff[21], 4); //485传来的yaw的目标值，需要发送到上板
+//     memcpy(&recv->R_yaw, &rx_buff[25], 4);
+//     memcpy(&recv->R_pitch, &rx_buff[29], 4);
+//     recv->target_shijue = rx_buff[33];
+    
+//     memcpy(&recv->Flag_turn, &rx_buff[34], 1);
+//     memcpy(&recv->Flag_headforward, &rx_buff[35], 1);
+//    // /* 使用memcpy接收浮点型小数 */
+//     // recv->is_tracking = rx_buff[1];
+
+//     // recv->is_shooting = rx_buff[2];
+//     // memcpy(&recv->yaw, &rx_buff[3], 4);
+//     // memcpy(&recv->pitch, &rx_buff[7], 4);
+//     // memcpy(&recv->distance, &rx_buff[11], 4);
+
+//     // /* 视觉数据处理 */
+//     // float yaw_total  = vision_instance->send_data->yaw; // 保存当前总角度
+//     // float yaw_target = recv->yaw;
+//     // recv->yaw        = AdjustNearestAngle(yaw_total, yaw_target);
+// }
 
 /**
  * @brief 离线回调函数,将在daemon.c中被daemon task调用
@@ -264,18 +437,18 @@ static void NaviDecodeVision(uint16_t var)
 {
 
         
-    UNUSED(var); // 仅为了消除警告
-    if (nav_recv_buff[0] == navigation_instance->recv_data->header) {
-        // 读取视觉数据
-        /* 接收校验位 */
-        memcpy(&navigation_instance->recv_data->checksum, &nav_recv_buff[NAVIGATION_RECV_SIZE - 2], 2);
-        if (navigation_instance->recv_data->checksum == Get_CRC16_Check_Sum(nav_recv_buff, NAVIGATION_RECV_SIZE - 2, CRC_INIT)) {
+    // UNUSED(var); // 仅为了消除警告
+    // if (nav_recv_buff[0] == navigation_instance->recv_data->header) {
+    //     // 读取视觉数据
+    //     /* 接收校验位 */
+    //     memcpy(&navigation_instance->recv_data->checksum, &nav_recv_buff[NAVIGATION_RECV_SIZE - 2], 2);
+    //     if (navigation_instance->recv_data->checksum == Get_CRC16_Check_Sum(nav_recv_buff, NAVIGATION_RECV_SIZE - 2, CRC_INIT)) {
             DaemonReload(navigation_daemon_instance);
             NaviRecvProcess(navigation_instance->recv_data, nav_recv_buff);
-        } else {
-            memset(navigation_instance->recv_data, 0, sizeof(Navigation_Recv_s));
-        }
-    }
+        // } else {
+        //     memset(navigation_instance->recv_data, 0, sizeof(Navigation_Recv_s));
+        // }
+ //   }
 }
 /**
  * @brief 用于注册一个视觉通信模块实例,返回一个视觉接收数据结构体指针
