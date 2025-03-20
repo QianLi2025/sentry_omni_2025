@@ -5,11 +5,12 @@
 #include "bsp_dwt.h"
 
 static UARTComm_Instance *ucomm;
+static float delt_time;
 
 static void UARTCommRxCallback(void)
 {
     /* 当前接收状态判断 */
-    if (ucomm->uart_instance->recv_buff[0] == UARTCOMM_HEADER && ucomm->recv_state == 0) {
+     if (ucomm->uart_instance->recv_buff[0] == UARTCOMM_HEADER && ucomm->recv_state == 0) {
         if (ucomm->uart_instance->recv_buff[1] == ucomm->recv_data_len) // 如果这一包里的datalen也等于我们设定接收长度(这是因为暂时不支持动态包长)
         {
             ucomm->recv_state = 1; // 设置接收状态为1,说明已经开始接收
