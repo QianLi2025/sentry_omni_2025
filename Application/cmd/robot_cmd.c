@@ -352,6 +352,7 @@ void ChassisCMDGet(void)
     chassis_cmd_send = chassis_comm_recv->Chassis_Ctr_Cmd;
     gimbal_cmd_send = chassis_comm_recv->Gimbal_Ctr_Cmd;
     shoot_cmd_send = chassis_comm_recv->Shoot_Ctr_Cmd;
+    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//*180/PI;
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
     //TODO：发射，云台，Robot 状态反馈

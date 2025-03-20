@@ -33,25 +33,25 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 1,
-                .Ki                = 0,
-                .Kd                = 0,
+                .Kp                = 10,
+                .Ki                = 0.315,
+                .Kd                = 0.022,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
                 .CoefA             = 0.2,
                 .MaxOut            = 400,
-                .Derivative_LPF_RC = 0.025,
+                .Derivative_LPF_RC = 0.25,
             },
             .speed_PID = {
-                .Kp            = 220,
-                .Ki            = 18,
+                .Kp            = 180,
+                .Ki            = 0.2,
                 .Kd            = 0,
                 .CoefB         = 0.3,
                 .CoefA         = 0.2,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate,
                 .IntegralLimit = 500,
-                .MaxOut        = 20000,
+                .MaxOut        = 8000,
             },
              .other_angle_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle,
             // // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
@@ -59,7 +59,7 @@ void YawInit (){
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
-            .speed_feedback_source = OTHER_FEED,
+            .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = ANGLE_LOOP | SPEED_LOOP,
             .motor_reverse_flag    = MOTOR_DIRECTION_REVERSE,
@@ -120,9 +120,9 @@ void PitchInit(){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 0.6,
-                .Ki                = 0,
-                .Kd                = 0.0085,
+                .Kp                = 0.65,//0.5,
+                .Ki                =0.1,//0.07,
+                .Kd                = 0,//0.001,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.1,
@@ -132,8 +132,8 @@ void PitchInit(){
                 .Output_LPF_RC     = 0.05,
             },
             .speed_PID = {
-                .Kp            = 20,
-                .Ki            = 6,
+                .Kp            = 75,
+                .Ki            = 50,
                 .Kd            = 0,
                 .CoefB         = 0.6,
                 .CoefA         = 0.3,
@@ -183,8 +183,8 @@ void PitchTask(){
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
-            pitch_cd_ms= DWT_GetTimeline_ms()/2000.0f;
-            pitch_cd_ms = 15.0f*sinf(pitch_cd_ms);
+            pitch_cd_ms= DWT_GetTimeline_ms()/1500.0f;
+            pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
                 LKMotorSetRef(pitch_motor, pitch_cd_ms);
             //注：陀螺仪对应G[0]Pitch,G[1]Roll,G[2]YAW 上正下负
             //Pitch 最高25 最低-20
