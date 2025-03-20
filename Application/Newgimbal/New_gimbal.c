@@ -24,6 +24,8 @@ static float pitch_current;
 static float pitch_motor_angle;
 
 static DJIMotor_Instance *yaw_motor;
+
+static float delt_time_yaw,current,last=0;
 void YawInit (){
    
     Motor_Init_Config_s yaw_config = {
@@ -108,6 +110,9 @@ void YawTask(){
     // 设置反馈数据,主要是imu和yaw的ecd
     gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
+    current = DWT_GetTimeline_ms();
+    delt_time_yaw = current - last;
+    last = current;
 }
 
 # if defined(GIMBAL_BOARD)
