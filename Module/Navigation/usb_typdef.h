@@ -105,15 +105,15 @@ typedef struct
             uint8_t custom_controller : 1;
             uint8_t reserve : 3;
         } __packed__ state;
-        // /// @brief 机器人裁判系统信息 7 bytes
-        // struct
-        // {
-        //     uint8_t id;
-        //     uint8_t color;  // 0-red 1-blue 2-unknown
-        //     bool attacked;
-        //     uint16_t hp;
-        //     uint16_t heat;
-        // } __packed__ referee;
+        /// @brief 机器人裁判系统信息 7 bytes
+        struct
+        {
+            uint8_t id;
+            uint8_t color;  // 0-red 1-blue 2-unknown
+            bool attacked;
+            uint16_t hp;
+            uint16_t heat;
+        } __packed__ referee;
     } __packed__ data;
     uint16_t crc;
 } __packed__ SendDataRobotStateInfo_s;

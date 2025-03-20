@@ -108,9 +108,8 @@ void TESTTask(void)
    {
     chassis_vx = navigation_ctrl->vx;
     chassis_vy = navigation_ctrl->vy;
-   }
-    
+   }    
    
    ChassisCalc(chassis_vx,chassis_vy,chassis_wz);
-   NavigationSend();
+   NavigationSend(); 
 }

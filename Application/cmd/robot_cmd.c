@@ -145,7 +145,7 @@ void GimbalCMDGet(void) //获取反馈数据
     gimbal_cmd_send.gimbal_imu_data_yaw.Accel = gimbal_fetch_data.gimbal_imu_data_yaw.Accel;
 }
 // dwt定时,计算冷却用
-static float hibernate_time = 0, dead_time = 0;
+static float hibernate_time = 0, dead_time = 2;
 void GimbalCMDSend(void)
 {
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
@@ -154,13 +154,13 @@ void GimbalCMDSend(void)
     gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
     gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
     gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
-    UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
 
+    VisionSend();
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
     return;
     else
     {
-    VisionSend();
+    UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
     hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
     dead_time      = 50; // 10ms发送一次
     }
