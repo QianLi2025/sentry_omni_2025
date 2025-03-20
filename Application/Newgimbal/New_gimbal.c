@@ -125,9 +125,9 @@ void PitchInit(){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 6.5,//0.5,
+                .Kp                = 15,//0.5,
                 .Ki                =0,//0.07,
-                .Kd                = 0.001,//0.001,
+                .Kd                = 0.1,//0.001,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.1,
@@ -137,7 +137,8 @@ void PitchInit(){
                 .Output_LPF_RC     = 0.05,
             },
             .speed_PID = {
-                .Kp            = 10.5,
+                .Kp            = 15
+                 ,
                 .Ki            = 0,
                 .Kd            = 0,
                 .CoefB         = 0.6,

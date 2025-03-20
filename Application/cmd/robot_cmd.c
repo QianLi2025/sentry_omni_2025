@@ -259,7 +259,7 @@ static void RemoteControlSet(void)
     if (switch_is_down(rc_data[TEMP].rc.switch_left) || !vision_ctrl->is_tracking) {
         // 按照摇杆的输出大小进行角度增量,增益系数需调整
         gimbal_cmd_send.yaw -= 0.001f * (float)rc_data[TEMP].rc.rocker_r_;
-        gimbal_cmd_send.pitch += 0.001f * (float)rc_data[TEMP].rc.rocker_r1;
+        gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
     }
 
     // 云台参数,确定云台控制数据
