@@ -49,7 +49,7 @@ void RobotInit(void)
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDInit();
-     YawInit();
+     //YawInit();
     //  LoaderInit();
      //ChassisInit();
 #endif
@@ -79,7 +79,7 @@ void RobotTask()
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDTask();
     //ChassisTask();
-      YawTask();
+    //YawTask();
     //  LoaderTask();    
 #endif
 }

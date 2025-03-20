@@ -35,32 +35,32 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 10,
-                .Ki                = 0.315,
-                .Kd                = 0.022,
+                .Kp                = 95,
+                .Ki                = 0,
+                .Kd                = 0.3,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
                 .CoefA             = 0.2,
-                .MaxOut            = 400,
+                .MaxOut            = 9000,//4000
                 .Derivative_LPF_RC = 0.25,
             },
             .speed_PID = {
-                .Kp            = 180,
-                .Ki            = 0.2,
+                .Kp            = 33,
+                .Ki            = 1,
                 .Kd            = 0,
                 .CoefB         = 0.3,
                 .CoefA         = 0.2,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate,
                 .IntegralLimit = 500,
-                .MaxOut        = 8000,
+                .MaxOut        = 30000,//10000
             },
              .other_angle_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle,
             // // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
              .other_speed_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.Gyro,
         },
         .controller_setting_init_config = {
-            .angle_feedback_source = OTHER_FEED,
+            .angle_feedback_source = MOTOR_FEED,
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = ANGLE_LOOP | SPEED_LOOP,
@@ -125,20 +125,20 @@ void PitchInit(){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 0.65,//0.5,
-                .Ki                =0.1,//0.07,
-                .Kd                = 0,//0.001,
+                .Kp                = 6.5,//0.5,
+                .Ki                =0,//0.07,
+                .Kd                = 0.001,//0.001,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.1,
                 .CoefA             = 0.1,
-                .MaxOut            = 20,
+                .MaxOut            = 30,
                 .Derivative_LPF_RC = 0.03,
                 .Output_LPF_RC     = 0.05,
             },
             .speed_PID = {
-                .Kp            = 75,
-                .Ki            = 50,
+                .Kp            = 10.5,
+                .Ki            = 0,
                 .Kd            = 0,
                 .CoefB         = 0.6,
                 .CoefA         = 0.3,
@@ -149,11 +149,11 @@ void PitchInit(){
             },
             .other_angle_feedback_ptr = &gimba_IMU_data->Pitch, //上正下负      
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
-            .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),//上正下负
+            //.other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),//上正下负
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
-            .speed_feedback_source = OTHER_FEED,
+            .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = SPEED_LOOP | ANGLE_LOOP,
             .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
