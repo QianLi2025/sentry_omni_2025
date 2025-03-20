@@ -5,10 +5,14 @@
 #include "bsp_dwt.h"
 
 static UARTComm_Instance *ucomm;
-static float delt_time;
+static float delt_time,recvtime,correcttime,lastcorrecttime;
+static int recv,corect,err;
+
 
 static void UARTCommRxCallback(void)
 {
+    recvtime = DWT_GetTimeline_ms();
+    recv++;
     /* 当前接收状态判断 */
      if (ucomm->uart_instance->recv_buff[0] == UARTCOMM_HEADER && ucomm->recv_state == 0) {
         if (ucomm->uart_instance->recv_buff[1] == ucomm->recv_data_len) // 如果这一包里的datalen也等于我们设定接收长度(这是因为暂时不支持动态包长)
@@ -25,12 +29,17 @@ static void UARTCommRxCallback(void)
             uint8_t crc8 = crc_8(ucomm->uart_instance->recv_buff + 2, ucomm->recv_data_len); // 计算crc8
             if (crc8 == ucomm->uart_instance->recv_buff[ucomm->recv_buf_len - 2])            // 如果crc8正确
             {
+                correcttime = DWT_GetTimeline_ms();
+                delt_time = correcttime - lastcorrecttime;
+                lastcorrecttime = correcttime;
+                corect++;
                 memcpy(ucomm->unpacked_recv_data, ucomm->uart_instance->recv_buff + 2, ucomm->recv_data_len); // 拷贝数据
                 DaemonReload(ucomm->ucomm_daemon);
             }
         }
     }
     ucomm->recv_state = 0; // 接收状态重置
+    err = recv - corect;
 }
 
 static void UARTCommLostCallback(void *arg)
