@@ -36,7 +36,9 @@
 static UARTComm_Instance *gimbal_uart_comm; // 双板通信
 static CMD_Gimbal_Send_Data_s gimbal_comm_send;
 static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
-
+static float yanshi_time=0;
+static float yanshi_time_last=0; 
+static float yanshi_time_erro=0;
 static Vision_Recv_s *vision_ctrl; // 视觉控制信息
 static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 #endif
@@ -133,6 +135,9 @@ void GimbalCMDInit(void)
 void GimbalCMDGet(void) //获取反馈数据
 {
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
+    yanshi_time = DWT_GetTimeline_ms();
+    yanshi_time_erro =yanshi_time-yanshi_time_last;
+      yanshi_time_last = yanshi_time;
     gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
     chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
     shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
@@ -148,22 +153,26 @@ void GimbalCMDGet(void) //获取反馈数据
 static float hibernate_time = 0, dead_time = 0;
 void GimbalCMDSend(void)
 {
+    
+   
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 
     gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
     gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
     gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
-    UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
 
-    if (hibernate_time + dead_time > DWT_GetTimeline_ms())
-    return;
-    else
-    {
     VisionSend();
-    hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
-    dead_time      = 50; // 10ms发送一次
-    }
+    // if (hibernate_time + dead_time > DWT_GetTimeline_ms())
+    // return;
+    // else
+    // {
+    UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
+    // hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
+    // dead_time      = 2; // 10ms发送一次
+   
+    // }
+  
 }
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
@@ -352,7 +361,7 @@ void ChassisCMDGet(void)
     chassis_cmd_send = chassis_comm_recv->Chassis_Ctr_Cmd;
     gimbal_cmd_send = chassis_comm_recv->Gimbal_Ctr_Cmd;
     shoot_cmd_send = chassis_comm_recv->Shoot_Ctr_Cmd;
-    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//*180/PI;
+    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//cc;
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
     //TODO：发射，云台，Robot 状态反馈
