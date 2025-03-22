@@ -8,7 +8,6 @@ static UARTComm_Instance *ucomm;
 static float delt_time,recvtime,correcttime,lastcorrecttime;
 static int recv,corect,err;
 
-
 static void UARTCommRxCallback(void)
 {
     recvtime = DWT_GetTimeline_ms();
@@ -23,7 +22,6 @@ static void UARTCommRxCallback(void)
     }
     if (ucomm->recv_state) // 已经收到过帧头
     {
-
         if (ucomm->uart_instance->recv_buff[ucomm->recv_buf_len - 1] == UARTCOMM_TAIL) // 如果帧尾正确
         {
             uint8_t crc8 = crc_8(ucomm->uart_instance->recv_buff + 2, ucomm->recv_data_len); // 计算crc8
@@ -72,7 +70,6 @@ UARTComm_Instance *UARTCommInit(UARTComm_Init_Config_s *config)
         .reload_count = config->daemon_counter,
     };
     ucomm->ucomm_daemon = DaemonRegister(&daemon_conf);
-
     return ucomm;
 }
 

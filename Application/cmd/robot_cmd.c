@@ -155,9 +155,7 @@ void GimbalCMDGet(void) //获取反馈数据
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 0;
 void GimbalCMDSend(void)
-{
-    
-   
+{   
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 

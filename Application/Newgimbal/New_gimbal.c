@@ -83,7 +83,6 @@ void YawInit (){
 void YawTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
 
-
     //TODO：YAW运行在底盘中，需要从CMD获取云台陀螺仪
 
     // @todo:现在已不再需要电机反馈,实际上可以始终使用IMU的姿态数据来作为云台的反馈,yaw电机的offset只是用来跟随底盘

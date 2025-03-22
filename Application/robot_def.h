@@ -260,7 +260,7 @@ typedef struct
     float yaw;
     float pitch;
     float chassis_rotate_wz;
-    //attitude_t gimbal_imu_data;
+    attitude_t gimbal_imu_data;
     attitude_t_yaw gimbal_imu_data_yaw;
     gimbal_mode_e gimbal_mode;
     vision_mode_e vision_mode;
@@ -347,6 +347,27 @@ typedef struct
 }Robot_Upload_Data_s;
 
 
+typedef struct  
+{
+    loader_mode_e load_mode;
+    int16_t rest_heat;
+    float shoot_rate; // 连续发射的射频,unit per s,发/秒
+    float dead_time;  // 发射冷却时间, 目前仅单发使用
+    attack_mode_e attack_mode;
+    uint8_t is_tracking;
+}Loader_Ctrl_Cmd_s;
+
+typedef struct  
+{
+    float yaw;
+    float chassis_rotate_wz;
+    //attitude_t gimbal_imu_data;
+    attitude_t_yaw gimbal_imu_data_yaw;
+    gimbal_mode_e gimbal_mode;
+    vision_mode_e vision_mode;
+    vision_lock_mode_e vision_lock_mode;
+
+}Yaw_Ctrl_Cmd_s;
 //-----------------------------上下C板通讯-----------------------------//
 typedef struct
 {
@@ -361,6 +382,7 @@ typedef struct
     Chassis_Ctrl_Cmd_s Chassis_Ctr_Cmd;
  
 } CMD_Gimbal_Send_Data_s;
+
 
 typedef struct
 {
