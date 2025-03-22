@@ -62,7 +62,7 @@ void YawInit (){
         .controller_setting_init_config = {
             .angle_feedback_source = MOTOR_FEED,
             .speed_feedback_source = MOTOR_FEED,
-            .outer_loop_type       = ANGLE_LOOP,
+            .outer_loop_type       = SPEED_LOOP,
             .close_loop_type       = ANGLE_LOOP | SPEED_LOOP,
             .motor_reverse_flag    = MOTOR_DIRECTION_REVERSE,
         },
@@ -71,6 +71,13 @@ void YawInit (){
 
         gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
         gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
+        
+        // osDelay(20);
+
+        // float target_yaw = 0;
+        // target_yaw = yaw_motor->measure.total_angle;
+        // DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
+        // DJIMotorSetRef(yaw_motor, target_yaw);
 
 }
 void YawTask(){
