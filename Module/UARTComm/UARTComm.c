@@ -38,6 +38,7 @@ static void UARTCommRxCallback(void)
     }
     ucomm->recv_state = 0; // 接收状态重置
     err = recv - corect;
+    
 }
 
 static void UARTCommLostCallback(void *arg)
