@@ -184,18 +184,8 @@ void GimbalCMDTask(void)
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
     shoot_cmd_send.rest_heat = robot_fetch_data.shoot_limit - robot_fetch_data.shoot_heat - 20; // 计算剩余热量
-    
-    if (!rc_data[TEMP].rc.switch_right || switch_is_down(rc_data[TEMP].rc.switch_right)) // 当收不到遥控器信号时，使用图传链路
-    {
-        //MouseKeySet();
-    } else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 当收到遥控器信号时,且右拨杆为中，使用遥控器
-    {
         RemoteControlSet();
-    } else if (switch_is_up(rc_data[TEMP].rc.switch_right)) {
-        // EmergencyHandler();
-       // RemoteMouseKeySet();
-    }
-
+  
     // 设置视觉发送数据,还需增加加速度和角速度数据
     /*
     static float yaw, pitch, roll, bullet_speed, yaw_speed;
@@ -211,7 +201,7 @@ void GimbalCMDTask(void)
     // 发送控制信息
     // 推送消息,双板通信,视觉通信等
     // chassis_cmd_send.friction_mode = shoot_cmd_send.friction_mode;
-    // chassis_cmd_send.vision_mode   = vision_ctrl->is_tracking ? LOCK : UNLOCK;
+   // chassis_cmd_send.vision_mode   = vision_ctrl->is_tracking ? LOCK : UNLOCK;
     // chassis_cmd_send.lid_mode      = shoot_cmd_send.lid_mode;
     //发送指令
     GimbalCMDSend();
@@ -255,20 +245,38 @@ static void RemoteControlSet(void)
     chassis_cmd_send.chassis_mode   = CHASSIS_SLOW; // 底盘模式
     gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
     chassis_cmd_send.super_cap_mode = SUPER_CAP_ON;
-
-    // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
-    if (switch_is_down(rc_data[TEMP].rc.switch_left) || !vision_ctrl->is_tracking) {
-        // 按照摇杆的输出大小进行角度增量,增益系数需调整
+//上巡航，中遥控，下导航
+    if(switch_is_up(rc_data[TEMP].rc.switch_right)||!vision_ctrl->is_tracking){
+        gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
+    }
+    if(switch_is_mid(rc_data[TEMP].rc.switch_right)){
+        gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
         gimbal_cmd_send.yaw -= 0.001f * (float)rc_data[TEMP].rc.rocker_r_;
         gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
     }
-
-    // 云台参数,确定云台控制数据
-    if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl->is_tracking) // 左侧开关状态为[中] / [上],视觉模式
-    {
+    if(switch_is_down(rc_data[TEMP].rc.switch_right)){
+        gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
         gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
         gimbal_cmd_send.pitch = (vision_ctrl->pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl->pitch);
     }
+
+
+
+    // // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
+    // if (switch_is_down(rc_data[TEMP].rc.switch_left)) {
+    //    gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
+    //     // 按照摇杆的输出大小进行角度增量,增益系数需调整
+    //     gimbal_cmd_send.yaw -= 0.001f * (float)rc_data[TEMP].rc.rocker_r_;
+    //     gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
+    // }
+
+    // // 云台参数,确定云台控制数据
+    // if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl->is_tracking) // 左侧开关状态为[中] / [上],视觉模式
+    // {
+    //      gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
+    //     gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
+    //     gimbal_cmd_send.pitch = (vision_ctrl->pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl->pitch);
+    // }
 
     // 云台软件限位
     if (gimbal_cmd_send.pitch > PITCH_MAX_ANGLE)

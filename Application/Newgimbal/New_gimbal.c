@@ -17,8 +17,7 @@ static Gimbal_Upload_Data_s gimbal_feedback_data; // 回传给cmd的云台状态
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_recv;         // 来自cmd的控制信息
 static float pitch_cd_ms;
 static int pitch_timer =0;
-static float yaw_target;
-
+static float last_pitch=0;
 static float pitch_target;      
 static float pitch_current;     
 static float pitch_motor_angle;
@@ -190,14 +189,20 @@ void PitchTask(){
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             LKMotorEnable(pitch_motor);
              // yaw和pitch会在robot_cmd中处理好多圈和单圈
+             last_pitch =gimbal_cmd_recv.pitch;
             LKMotorSetRef(pitch_motor, gimbal_cmd_recv.pitch);
+            
             break;
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
+
             pitch_cd_ms= DWT_GetTimeline_ms()/1500.0f;
             pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
+            if(last_pitch-pitch_cd_ms<20){
+                last_pitch =pitch_cd_ms;
                 LKMotorSetRef(pitch_motor, pitch_cd_ms);
+            }
             //注：陀螺仪对应G[0]Pitch,G[1]Roll,G[2]YAW 上正下负
             //Pitch 最高25 最低-20
         default:
