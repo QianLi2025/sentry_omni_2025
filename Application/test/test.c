@@ -8,7 +8,7 @@
 #include "remote.h"
 #include "Navi_process.h"
 
-#define K_speedcalc 100
+#define K_speedcalc 6000
 
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left right forward back
 /* 私有函数计算的中介变量,设为静态避免参数传递的开销 */
@@ -27,18 +27,18 @@ void testChassisInit()
         .can_init_config.can_handle   = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 0.8, // 4.5
-                .Ki            = 0, // 0
+                .Kp            = 2, // 4.5
+                .Ki            = 0.1, // 0
                 .Kd            = 0, // 0
-                .IntegralLimit = 5000,
+                .IntegralLimit = 6000,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut        = 12000,
             },
             .current_PID = {
-                .Kp            = 0.4, // 0.4
-                .Ki            = 0,  // 0
+                .Kp            = 0.6, // 0.4
+                .Ki            = 0.05,  // 0
                 .Kd            = 0,
-                .IntegralLimit = 3000,
+                .IntegralLimit = 6000,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut        = 15000,
             },
@@ -69,7 +69,7 @@ void testChassisInit()
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
 }
 
-void ChassisCalc(int vx,int vy,int wz)
+void ChassisCalc(float vx,float vy,float wz)
 {
     vt_lf = vx+vy+wz;
     vt_rf = -vx+vy+wz;
@@ -92,23 +92,25 @@ void TESTInit(void)
 
 void TESTTask(void)
 {
-   if(switch_is_down(remote[TEMP].rc.switch_left))
-   {
-    chassis_vx = 0;
-    chassis_vy = 0;
-    chassis_wz = remote->rc.dial * 0.5f;
-   }
-   else if (switch_is_mid(remote[TEMP].rc.switch_left))
-   {
-    chassis_vx = remote->rc.rocker_l1;
-    chassis_vy = remote->rc.rocker_l_;
-    chassis_wz = remote->rc.dial;    
-   }
-   else if (switch_is_up(remote[TEMP].rc.switch_left))
-   {
+//    if(switch_is_down(remote[TEMP].rc.switch_left))
+//    {
+//     chassis_vx = 0;
+//     chassis_vy = 0;
+//     chassis_wz = remote->rc.dial * 0.5f;
+//    }
+//    else if (switch_is_mid(remote[TEMP].rc.switch_left))
+//    {
+//     chassis_vx = remote->rc.rocker_l1;
+//     chassis_vy = remote->rc.rocker_l_;
+//     chassis_wz = remote->rc.dial;    
+//    }
+//    else if (switch_is_up(remote[TEMP].rc.switch_left))
+//    {
     chassis_vx = navigation_ctrl->vx;
     chassis_vy = navigation_ctrl->vy;
-   }    
+    chassis_wz = navigation_ctrl->wz;
+    // chassis_vx = ;
+//    }    
    
    ChassisCalc(chassis_vx,chassis_vy,chassis_wz);
    NavigationSend(); 
