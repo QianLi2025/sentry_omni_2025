@@ -59,7 +59,7 @@ void YawInit (){
              .other_speed_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.Gyro,
         },
         .controller_setting_init_config = {
-            .angle_feedback_source = MOTOR_FEED,
+            .angle_feedback_source = OTHER_FEED,
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = SPEED_LOOP,
             .close_loop_type       = ANGLE_LOOP | SPEED_LOOP,
