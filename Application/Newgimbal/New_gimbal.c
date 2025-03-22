@@ -178,7 +178,7 @@ void PitchTask(){
     pitch_current     = gimba_IMU_data->Pitch;
     pitch_current     = gimba_IMU_data->Pitch;
     pitch_motor_angle = pitch_motor->measure.total_angle;
-    gimbal_cmd_recv.gimbal_mode=GIMBAL_GYRO_MODE;
+    // gimbal_cmd_recv.gimbal_mode=GIMBAL_GYRO_MODE;
     switch (gimbal_cmd_recv.gimbal_mode) {
         // 停止
         case GIMBAL_ZERO_FORCE:
@@ -196,7 +196,7 @@ void PitchTask(){
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
 
-            pitch_cd_ms= DWT_GetTimeline_ms()/1500.0f;
+            pitch_cd_ms= DWT_GetTimeline_ms()/500.0f;
             pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
             if(last_pitch-pitch_cd_ms<20){
                 last_pitch =pitch_cd_ms;
