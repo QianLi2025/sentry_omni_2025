@@ -113,7 +113,7 @@ void YawTask(){
         DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
             yaw_motor->motor_controller.speed_PID.Kp =50;
             yaw_motor->motor_controller.speed_PID.Ki =2;           
-            DJIMotorSetRef(yaw_motor, 300);
+            DJIMotorSetRef(yaw_motor, 200);
         default:
             break;
     }
@@ -205,7 +205,7 @@ void PitchTask(){
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
 
-            pitch_cd_ms= DWT_GetTimeline_ms()/500.0f;
+            pitch_cd_ms= DWT_GetTimeline_ms()/300.0f;
             pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
             if(last_pitch-pitch_cd_ms<20){
                 last_pitch =pitch_cd_ms;
