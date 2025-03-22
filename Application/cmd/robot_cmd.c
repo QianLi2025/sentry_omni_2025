@@ -44,6 +44,7 @@ static float yanshi_time_last=0;
 static float yanshi_time_erro=0;
 static Vision_Recv_s *vision_ctrl; // 视觉控制信息
 static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
+static attitude_t *gimba_IMU_data; // 云台IMU数据
 #endif
 
 #ifdef CHASSIS_BOARD
@@ -112,6 +113,7 @@ void GimbalCMDInit(void)
     // 初始化视觉控制
     vision_ctrl  = VisionInit(&huart1);
 
+    gimba_IMU_data = INS_Init();
     // 配置UART通信初始化参数
     UARTComm_Init_Config_s comm_conf = {
         .uart_handle = &huart1,
@@ -140,17 +142,12 @@ void GimbalCMDGet(void) //获取反馈数据
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
     yanshi_time = DWT_GetTimeline_ms();
     yanshi_time_erro =yanshi_time-yanshi_time_last;
-      yanshi_time_last = yanshi_time;
+    yanshi_time_last = yanshi_time;
     gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
-    chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
-    shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
+    // chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
+    // shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
     gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
-
-    gimbal_cmd_send.gimbal_imu_data_yaw.Yaw =gimbal_fetch_data.gimbal_imu_data_yaw.Yaw;
-    gimbal_cmd_send.gimbal_imu_data_yaw.YawTotalAngle = gimbal_fetch_data.gimbal_imu_data_yaw.YawTotalAngle;
-    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_fetch_data.gimbal_imu_data_yaw.Gyro;
-    gimbal_cmd_send.gimbal_imu_data_yaw.Accel = gimbal_fetch_data.gimbal_imu_data_yaw.Accel;
 }
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 0;
@@ -159,9 +156,24 @@ void GimbalCMDSend(void)
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
 
-    gimbal_comm_send.Shoot_Ctr_Cmd = shoot_cmd_send;
-    gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
-    gimbal_comm_send.Chassis_Ctr_Cmd = chassis_cmd_send;
+    gimbal_comm_send.Shoot_Ctr_Cmd.is_tracking = shoot_cmd_send.is_tracking;
+    gimbal_comm_send.Shoot_Ctr_Cmd.shoot_rate = shoot_cmd_send.shoot_rate;
+    gimbal_comm_send.Shoot_Ctr_Cmd.load_mode = shoot_cmd_send.load_mode;
+
+    gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle = gimba_IMU_data->YawTotalAngle;
+    gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.Gyro = gimba_IMU_data->Gyro[2];
+    gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_mode = gimbal_cmd_send.gimbal_mode;
+    gimbal_comm_send.Gimbal_Ctr_Cmd.yaw = gimbal_cmd_send.yaw;
+    gimbal_comm_send.Gimbal_Ctr_Cmd.chassis_rotate_wz = chassis_cmd_send.wz;
+
+    // gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
+    gimbal_comm_send.Chassis_Ctr_Cmd.vx = chassis_cmd_send.vx;
+    gimbal_comm_send.Chassis_Ctr_Cmd.vy = chassis_cmd_send.vy;
+    gimbal_comm_send.Chassis_Ctr_Cmd.wz = chassis_cmd_send.wz;
+    gimbal_comm_send.Chassis_Ctr_Cmd.super_cap_mode = chassis_cmd_send.super_cap_mode;
+    gimbal_comm_send.Chassis_Ctr_Cmd.chassis_mode = chassis_cmd_send.chassis_mode;
+    gimbal_comm_send.Chassis_Ctr_Cmd.offset_angle = chassis_cmd_send.offset_angle;
+
 
     VisionSend();
     // if (hibernate_time + dead_time > DWT_GetTimeline_ms())
@@ -170,10 +182,8 @@ void GimbalCMDSend(void)
     // {
     UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
     // hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
-    // dead_time      = 2; // 10ms发送一次
-   
+    // dead_time      = 2; // 10ms发送一次   
     // }
-  
 }
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
@@ -187,17 +197,19 @@ void GimbalCMDTask(void)
         RemoteControlSet();
   
     // 设置视觉发送数据,还需增加加速度和角速度数据
-    /*
+    
     static float yaw, pitch, roll, bullet_speed, yaw_speed;
-    yaw          = gimbal_fetch_data.gimbal_imu_data.YawTotalAngle;
-    pitch        = gimbal_fetch_data.gimbal_imu_data.Roll;
-    roll         = gimbal_fetch_data.gimbal_imu_data.Pitch;
+   
+    yaw          = gimba_IMU_data->YawTotalAngle;
+    pitch        = gimba_IMU_data->Roll;
+    roll         = gimba_IMU_data->Pitch;
     bullet_speed = robot_fetch_data.bullet_speed;
-    yaw_speed    = gimbal_fetch_data.gimbal_imu_data.Gyro[2];
+    yaw_speed    = gimba_IMU_data->Gyro[2];
 
-    VisionSetDetectColor(robot_fetch_data.self_color);
+    // VisionSetDetectColor(robot_fetch_data.self_color);
+    VisionSetDetectColor(5);
     VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
-*/
+
     // 发送控制信息
     // 推送消息,双板通信,视觉通信等
     // chassis_cmd_send.friction_mode = shoot_cmd_send.friction_mode;
@@ -368,18 +380,45 @@ void ChassisCMDInit(void)
 void ChassisCMDGet(void)
 {
     chassis_comm_recv = (CMD_Gimbal_Send_Data_s *)UARTCommGet(chassis_uart_comm);
-    chassis_cmd_send = chassis_comm_recv->Chassis_Ctr_Cmd;
-    gimbal_cmd_send = chassis_comm_recv->Gimbal_Ctr_Cmd;
-    shoot_cmd_send = chassis_comm_recv->Shoot_Ctr_Cmd;
-    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//cc;
+    //  chassis_cmd_send = chassis_comm_recv->Chassis_Ctr_Cmd;
+    // gimbal_cmd_send = chassis_comm_recv->Gimbal_Ctr_Cmd;
+    // shoot_cmd_send = chassis_comm_recv->Shoot_Ctr_Cmd;
+    // gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//cc;
+     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
+     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
+
+    shoot_cmd_send.shoot_rate = chassis_comm_recv->Shoot_Ctr_Cmd.shoot_rate;
+    shoot_cmd_send.load_mode = chassis_comm_recv->Shoot_Ctr_Cmd.load_mode;
+    shoot_cmd_send.is_tracking = chassis_comm_recv->Shoot_Ctr_Cmd.is_tracking;
+    shoot_cmd_send.rest_heat = referee_data->GameRobotState.shooter_barrel_heat_limit - referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+
+    gimbal_cmd_send.yaw = chassis_comm_recv->Gimbal_Ctr_Cmd.yaw;
+    gimbal_cmd_send.gimbal_imu_data_yaw.YawTotalAngle = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
+    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.Gyro;
+    gimbal_cmd_send.gimbal_mode = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_mode;
+    gimbal_cmd_send.chassis_rotate_wz = chassis_comm_recv->Gimbal_Ctr_Cmd.chassis_rotate_wz;
+
+    chassis_cmd_send.vx = chassis_comm_recv->Chassis_Ctr_Cmd.vx;
+    chassis_cmd_send.vy = chassis_comm_recv->Chassis_Ctr_Cmd.vy;
+    chassis_cmd_send.wz = chassis_comm_recv->Chassis_Ctr_Cmd.wz;
+    chassis_cmd_send.chassis_mode = chassis_comm_recv->Chassis_Ctr_Cmd.chassis_mode;
+    chassis_cmd_send.super_cap_mode = chassis_comm_recv->Chassis_Ctr_Cmd.super_cap_mode;
+    chassis_cmd_send.offset_angle = chassis_comm_recv->Chassis_Ctr_Cmd.offset_angle;
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
+
+
     //TODO：发射，云台，Robot 状态反馈
 }
 
 void RobotStateGet(void)
 {
     // robot_fetch_data.bullet_speed
+    robot_fetch_data.bullet_speed = referee_data->ShootData.bullet_speed;
+
+    // robot_fetch_data.self_color = referee_data;
+    // robot_fetch_data.shoot_heat = referee_data->ShootData;
+
 }
 
 void ChassisCMDSend(void)
