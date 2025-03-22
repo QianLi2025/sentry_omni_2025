@@ -18,7 +18,7 @@
 
 /* 开发板类型定义,烧录时注意不要弄错对应功能;修改定义后需要重新编译,只能存在一个定义! */
 // #define ONE_BOARD // ! 单板控制整车，beta选项，建议别选上
-// #define CHASSIS_BOARD // 底盘板
+#define CHASSIS_BOARD // 底盘板
 #define GIMBAL_BOARD // 云台板
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
@@ -334,7 +334,7 @@ typedef struct
 
 typedef struct
 {
-    attitude_t_yaw gimbal_imu_data_yaw;
+    // attitude_t_yaw gimbal_imu_data_yaw;
     float yaw_motor_single_round_angle;
 } Gimbal_Upload_Data_s;
 
@@ -350,10 +350,10 @@ typedef struct
 typedef struct  
 {
     loader_mode_e load_mode;
-    int16_t rest_heat;
+    // int16_t rest_heat;
     float shoot_rate; // 连续发射的射频,unit per s,发/秒
-    float dead_time;  // 发射冷却时间, 目前仅单发使用
-    attack_mode_e attack_mode;
+    // float dead_time;  // 发射冷却时间, 目前仅单发使用
+    // attack_mode_e attack_mode;
     uint8_t is_tracking;
 }Loader_Ctrl_Cmd_s;
 
@@ -364,10 +364,23 @@ typedef struct
     //attitude_t gimbal_imu_data;
     attitude_t_yaw gimbal_imu_data_yaw;
     gimbal_mode_e gimbal_mode;
-    vision_mode_e vision_mode;
-    vision_lock_mode_e vision_lock_mode;
-
+    // vision_mode_e vision_mode;
+    // vision_lock_mode_e vision_lock_mode;
 }Yaw_Ctrl_Cmd_s;
+
+typedef struct
+{
+    // 控制部分
+    float vx;           // 前进方向速度
+    float vy;           // 横移方向速度
+    float wz;           // 旋转速度
+    float offset_angle; // 底盘和归中位置的夹角
+    chassis_mode_e chassis_mode;
+    super_cap_mode_e super_cap_mode;
+
+} Chassis_Ctrl_CmdSend_s;
+
+
 //-----------------------------上下C板通讯-----------------------------//
 typedef struct
 {
@@ -377,9 +390,9 @@ typedef struct
     // vision_mode_e vision_mode;           //  视觉状态
     // vision_lock_mode_e vision_lock_mode; // 视觉锁定的目标状态
     // vision_is_shoot_e vision_is_shoot;   // 是否使用视觉is_shooting参数
-    Shoot_Ctrl_Cmd_s Shoot_Ctr_Cmd;
-    Gimbal_Ctrl_Cmd_s Gimbal_Ctr_Cmd;
-    Chassis_Ctrl_Cmd_s Chassis_Ctr_Cmd;
+    Loader_Ctrl_Cmd_s Shoot_Ctr_Cmd;
+    Yaw_Ctrl_Cmd_s Gimbal_Ctr_Cmd;
+    Chassis_Ctrl_CmdSend_s Chassis_Ctr_Cmd;
  
 } CMD_Gimbal_Send_Data_s;
 

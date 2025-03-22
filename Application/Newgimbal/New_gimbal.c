@@ -203,10 +203,7 @@ void PitchTask(){
         default:
             break;
 }
-    gimbal_feedback_data.gimbal_imu_data_yaw.Accel              = gimba_IMU_data->Accel[2];
-    gimbal_feedback_data.gimbal_imu_data_yaw.Gyro              = gimba_IMU_data->Gyro[2];
-    gimbal_feedback_data.gimbal_imu_data_yaw.Yaw              = gimba_IMU_data->Yaw;
-    gimbal_feedback_data.gimbal_imu_data_yaw.YawTotalAngle              = gimba_IMU_data->YawTotalAngle;
+
     //
     // 推送消息
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
