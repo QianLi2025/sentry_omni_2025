@@ -302,7 +302,7 @@ static void RemoteControlSet(void)
     // max 70.f,参数过大会达到电机的峰值速度，导致底盘漂移等问题，且毫无意义
     chassis_cmd_send.vx = -60.0f * (float)rc_data[TEMP].rc.rocker_l_; // _水平方向
     chassis_cmd_send.vy = -60.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
-    // chassis_cmd_send.wz = -30.0f * (float)rc_data[TEMP].rc.dial;
+    chassis_cmd_send.wz = -15.0f * (float)rc_data[TEMP].rc.dial;
 
     // 发射参数
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 左侧开关状态[上],弹舱打开
@@ -327,7 +327,7 @@ static void RemoteControlSet(void)
     //     shoot_cmd_send.load_mode = LOAD_STOP;
 
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
-    shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*20/660;
+    //shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*20/660;
 }
 #endif // DEBUG
 

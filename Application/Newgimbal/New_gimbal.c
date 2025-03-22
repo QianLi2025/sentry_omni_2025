@@ -34,18 +34,18 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 60,
+                .Kp                = 70,
                 .Ki                = 0,
-                .Kd                = 0.5,
+                .Kd                = 0.2,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
                 .CoefA             = 0.2,
-                .MaxOut            = 5000,//4000
+                .MaxOut            = 6000,//4000
                 .Derivative_LPF_RC = 0.25,
             },
             .speed_PID = {
-                .Kp            = 33,
+                .Kp            = 40,
                 .Ki            = 0.01,
                 .Kd            = 0,
                 .CoefB         = 0.3,
@@ -204,7 +204,6 @@ void PitchTask(){
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
-
             pitch_cd_ms= DWT_GetTimeline_ms()/300.0f;
             pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
             if(last_pitch-pitch_cd_ms<20){

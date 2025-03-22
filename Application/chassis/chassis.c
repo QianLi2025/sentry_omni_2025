@@ -80,12 +80,12 @@ void ChassisInit()
         .motor_type = M3508,
     };
     //  @todo: 当前还没有设置电机的正反转,仍然需要手动添加reference的正负号,需要电机module的支持,待修改.
-    chassis_motor_config.can_init_config.tx_id                             = 1;
+    chassis_motor_config.can_init_config.tx_id                             = 2;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
     motor_lf                                                               = DJIMotorInit(&chassis_motor_config);
 
-    chassis_motor_config.can_init_config.tx_id                             = 2;
-    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    chassis_motor_config.can_init_config.tx_id                             = 1;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 3;
@@ -93,7 +93,7 @@ void ChassisInit()
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 4;
-    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
     PID_Init_Config_s chassis_follow_pid_conf = {
@@ -144,10 +144,10 @@ void ChassisInit()
  */
 static void MecanumCalculate()
 {
-    vt_lf = (-chassis_vx + chassis_vy) * CHASSIS_WHEEL_OFFSET + chassis_cmd_recv.wz; // 1
-    vt_rf = (chassis_vx + chassis_vy) * CHASSIS_WHEEL_OFFSET + chassis_cmd_recv.wz;  // 2
-    vt_rb = (-chassis_vx - chassis_vy) * CHASSIS_WHEEL_OFFSET + chassis_cmd_recv.wz; // 3
-    vt_lb = (chassis_vx - chassis_vy) * CHASSIS_WHEEL_OFFSET + chassis_cmd_recv.wz;  // 4
+    vt_lf = (chassis_vx + chassis_vy) * CHASSIS_WHEEL_OFFSET - chassis_cmd_recv.wz; // 1
+    vt_rf = (-chassis_vx + chassis_vy) * CHASSIS_WHEEL_OFFSET + chassis_cmd_recv.wz;  // 2
+    vt_rb = (chassis_vx + chassis_vy) * CHASSIS_WHEEL_OFFSET + chassis_cmd_recv.wz; // 3
+    vt_lb = (-chassis_vx + chassis_vy) * CHASSIS_WHEEL_OFFSET - chassis_cmd_recv.wz;  // 4
 }
 
 /**
@@ -261,6 +261,7 @@ void ChassisTask()
 
     // 根据控制模式设定旋转速度
     // 根据控制模式设定旋转速度
+   //chassis_cmd_recv.chassis_mode =  CHASSIS_FOLLOW_GIMBAL_YAW
     switch (chassis_cmd_recv.chassis_mode) 
     {
         case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台PID模式
@@ -282,8 +283,8 @@ void ChassisTask()
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     // cos_theta = 0, sin_theta = 1;
-    chassis_vx = -chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
-    chassis_vy = -chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
+    chassis_vx = chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
+    chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
 
     // 根据控制模式进行正运动学解算,计算底盘输出
     MecanumCalculate();
