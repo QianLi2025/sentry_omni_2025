@@ -258,15 +258,17 @@ static void RemoteControlSet(void)
     gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
     chassis_cmd_send.super_cap_mode = SUPER_CAP_ON;
 //上巡航，中遥控，下导航
-    if(switch_is_up(rc_data[TEMP].rc.switch_right)||!vision_ctrl->is_tracking){
-        gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
-    }
     if(switch_is_mid(rc_data[TEMP].rc.switch_right)){
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
         gimbal_cmd_send.yaw -= 0.001f * (float)rc_data[TEMP].rc.rocker_r_;
         gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
     }
-    if(switch_is_down(rc_data[TEMP].rc.switch_right)){
+     if(switch_is_up(rc_data[TEMP].rc.switch_right)||!vision_ctrl->is_tracking){
+        gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
+        gimbal_cmd_send.yaw = gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
+    }
+
+     if(switch_is_down(rc_data[TEMP].rc.switch_right||vision_ctrl->is_tracking)){
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
         gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
         gimbal_cmd_send.pitch = (vision_ctrl->pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl->pitch);

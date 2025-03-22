@@ -34,24 +34,24 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 95,
+                .Kp                = 60,
                 .Ki                = 0,
-                .Kd                = 0.3,
+                .Kd                = 0.5,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
                 .CoefA             = 0.2,
-                .MaxOut            = 9000,//4000
+                .MaxOut            = 5000,//4000
                 .Derivative_LPF_RC = 0.25,
             },
             .speed_PID = {
                 .Kp            = 33,
-                .Ki            = 1,
+                .Ki            = 0.01,
                 .Kd            = 0,
                 .CoefB         = 0.3,
                 .CoefA         = 0.2,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate,
-                .IntegralLimit = 500,
+                .IntegralLimit = 5000,
                 .MaxOut        = 30000,//10000
             },
              .other_angle_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle,
@@ -86,7 +86,6 @@ void YawTask(){
 
     // @todo:现在已不再需要电机反馈,实际上可以始终使用IMU的姿态数据来作为云台的反馈,yaw电机的offset只是用来跟随底盘
     // 根据控制模式进行电机反馈切换和过渡,视觉模式在robot_cmd模块就已经设置好,gimbal只看yaw_ref和pitch_ref
-    gimbal_cmd_recv.gimbal_mode=GIMBAL_GYRO_MODE;
     switch (gimbal_cmd_recv.gimbal_mode) {
         
         // 停止
@@ -96,15 +95,25 @@ void YawTask(){
         // 使用陀螺仪的反馈,底盘根据yaw电机的offset跟随云台或视觉模式采用
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             DJIMotorEnable(yaw_motor);
+         yaw_motor->motor_controller.speed_PID.Kp =33;
+            yaw_motor->motor_controller.speed_PID.Ki =0;
+            yaw_motor->motor_controller.angle_PID.Kp =60;
+            yaw_motor->motor_controller.angle_PID.Kd =0.5;
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
 
+            //  if(gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle+gimbal_cmd_recv.yaw>90){
+            //     gimbal_cmd_recv.yaw=-gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle;
+            // }
             DJIMotorSetRef(yaw_motor, -gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             break;
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
-            DJIMotorEnable(yaw_motor);
-            DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
-            DJIMotorSetRef(yaw_motor, 1);
+        DJIMotorEnable(yaw_motor);
+
+        DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
+            yaw_motor->motor_controller.speed_PID.Kp =50;
+            yaw_motor->motor_controller.speed_PID.Ki =2;           
+            DJIMotorSetRef(yaw_motor, 300);
         default:
             break;
     }
