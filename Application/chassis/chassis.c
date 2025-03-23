@@ -55,10 +55,10 @@ void ChassisInit()
         .can_init_config.can_handle   = &hcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 0.8, // 4.5
-                .Ki            = 0, // 0
+                .Kp            = 11.5, // 4.5
+                .Ki            = 0.5, // 0
                 .Kd            = 0, // 0
-                .IntegralLimit = 5000,
+                .IntegralLimit = 9000,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut        = 12000,
             },
@@ -97,13 +97,13 @@ void ChassisInit()
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
     PID_Init_Config_s chassis_follow_pid_conf = {
-        .Kp                = 1620,
-        .Ki                = 0.0f,
-        .Kd                = 3.0f,
-        .MaxOut            = 13000,
+        .Kp                = 10,
+        .Ki                = 0.2f,
+        .Kd                = 1.3,
+        .MaxOut            = 10000,
         .DeadBand          = 0.1,
         .Improve           = PID_DerivativeFilter | PID_Derivative_On_Measurement,
-        .Derivative_LPF_RC = 0.05,
+        .Derivative_LPF_RC = 0,
     };
     PIDInit(&chassis_follow_pid, &chassis_follow_pid_conf);
 
@@ -239,6 +239,7 @@ static void EstimateSpeed()
     // max 48000
 }
 
+float offset_angle;
 /* 机器人底盘控制核心任务 */
 void ChassisTask()
 {
@@ -253,29 +254,37 @@ void ChassisTask()
     //     DJIMotorStop(motor_lb);
     //     DJIMotorStop(motor_rb);
     // } else { // 正常工作
-        DJIMotorEnable(motor_lf);
-        DJIMotorEnable(motor_rf);
-        DJIMotorEnable(motor_lb);
-        DJIMotorEnable(motor_rb);
+    DJIMotorEnable(motor_lf);
+    DJIMotorEnable(motor_rf);
+    DJIMotorEnable(motor_lb);
+    DJIMotorEnable(motor_rb);
     //}
 
     // 根据控制模式设定旋转速度
     // 根据控制模式设定旋转速度
    //chassis_cmd_recv.chassis_mode =  CHASSIS_FOLLOW_GIMBAL_YAW
-    switch (chassis_cmd_recv.chassis_mode) 
+    // switch (chassis_cmd_recv.chassis_mode) 
+    // {
+    //     case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台PID模式
+    //         chassis_cmd_recv.wz = PIDCalculate(&chassis_follow_pid, chassis_cmd_recv.offset_angle, 0);
+    //         break;
+    //     case CHASSIS_FIXED_ANGULAR_RATE: // 新增固定角速度模式
+    //         chassis_cmd_recv.wz = 100.0f; // 示例固定值（单位：度/秒），根据实际需求修改
+    //         break;
+    //     case CHASSIS_DIRECT_GIMBAL_WZ: // 直接使用云台原始wz（新增）
+    //     // 无需计算，直接保留来自云台板的原始wz值
+    //         break;
+    //     default:
+    //         break;
+    // }
+
+    offset_angle = chassis_cmd_recv.offset_angle;
+    if (offset_angle<5 && offset_angle>-5)
     {
-        case CHASSIS_FOLLOW_GIMBAL_YAW: // 跟随云台PID模式
-            chassis_cmd_recv.wz = PIDCalculate(&chassis_follow_pid, chassis_cmd_recv.offset_angle, 0);
-            break;
-        case CHASSIS_FIXED_ANGULAR_RATE: // 新增固定角速度模式
-            chassis_cmd_recv.wz = 100.0f; // 示例固定值（单位：度/秒），根据实际需求修改
-            break;
-            case CHASSIS_DIRECT_GIMBAL_WZ: // 直接使用云台原始wz（新增）
-            // 无需计算，直接保留来自云台板的原始wz值
-            break;
-        default:
-            break;
+        offset_angle = 0;
     }
+
+    chassis_cmd_recv.wz = PIDCalculate(&chassis_follow_pid, offset_angle,0);
 
     // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
     // 底盘逆时针旋转为角度正方向;云台命令的方向以云台指向的方向为x,采用右手系(x指向正北时y在正东)

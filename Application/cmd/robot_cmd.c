@@ -260,7 +260,7 @@ static void RemoteControlSet(void)
 //上巡航，中遥控，下导航
     if(switch_is_mid(rc_data[TEMP].rc.switch_right)){
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
-        gimbal_cmd_send.yaw -= 0.001f * (float)rc_data[TEMP].rc.rocker_r_;
+        gimbal_cmd_send.yaw -= 0.004f * (float)rc_data[TEMP].rc.rocker_r_;
         gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
     }
      else if(switch_is_up(rc_data[TEMP].rc.switch_right)||!vision_ctrl->is_tracking){
@@ -302,7 +302,8 @@ static void RemoteControlSet(void)
     // max 70.f,参数过大会达到电机的峰值速度，导致底盘漂移等问题，且毫无意义
     chassis_cmd_send.vx = -60.0f * (float)rc_data[TEMP].rc.rocker_l_; // _水平方向
     chassis_cmd_send.vy = -60.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
-    chassis_cmd_send.wz = -15.0f * (float)rc_data[TEMP].rc.dial;
+    // chassis_cmd_send.wz = (float)rc_data[TEMP].rc.dial*360/660+chassis_cmd_send.wz;
+    chassis_cmd_send.chassis_angle = chassis_cmd_send.chassis_angle;               
 
     // 发射参数
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 左侧开关状态[上],弹舱打开
@@ -318,7 +319,7 @@ static void RemoteControlSet(void)
 
     // 拨弹控制,遥控器固定为一种拨弹模式,可自行选择
     if (switch_is_up(rc_data[TEMP].rc.switch_left))
-        // shoot_cmd_send.load_mode = LOAD_3_BULLET;
+        //  shoot_cmd_send.load_mode = LOAD_3_BULLET;
         shoot_cmd_send.load_mode = LOAD_MEDIUM;
     else
         shoot_cmd_send.load_mode = LOAD_STOP;
@@ -327,7 +328,7 @@ static void RemoteControlSet(void)
     //     shoot_cmd_send.load_mode = LOAD_STOP;
 
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
-    //shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*20/660;
+    shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*15/660;
 }
 #endif // DEBUG
 
