@@ -150,7 +150,7 @@ void GimbalCMDGet(void) //获取反馈数据
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
 }
 // dwt定时,计算冷却用
-static float hibernate_time = 0, dead_time = 0;
+static float hibernate_time = 0, dead_time = 2;
 void GimbalCMDSend(void)
 {   
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
