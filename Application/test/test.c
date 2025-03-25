@@ -7,7 +7,7 @@
 #include "DJI_motor.h"
 #include "remote.h"
 #include "Navi_process.h"
-
+#include "ins_task.h"
 #define K_speedcalc 6000
 
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb; // left right forward back
@@ -19,6 +19,7 @@ static uint8_t is_init;
 
 static RC_ctrl_t *remote;
 static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
+static attitude_t *IMU_data; // 云台IMU数据
 
 void testChassisInit()
 {
@@ -67,12 +68,14 @@ void testChassisInit()
     chassis_motor_config.can_init_config.tx_id                             = 4;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
+
+    // IMU_data = INS_Init();
 }
 
 void ChassisCalc(float vx,float vy,float wz)
 {
     vt_lf = vx+vy+wz;
-    vt_rf = -vx+vy+wz;
+    vt_rf = -vx+vy-wz;
     vt_lb = vx-vy+wz;
     vt_rb = -vx-vy-wz;
 

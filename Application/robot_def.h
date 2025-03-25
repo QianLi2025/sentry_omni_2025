@@ -34,8 +34,8 @@
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
 // 云台参数
-#define YAW_CHASSIS_ALIGN_ECD     660   // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
-#define YAW_ECD_GREATER_THAN_4096 1     // ALIGN_ECD值是否大于4096,是为1,否为0;用于计算云台偏转角度
+#define YAW_CHASSIS_ALIGN_ECD     6846   // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
+#define YAW_ECD_GREATER_THAN_4096 0    // ALIGN_ECD值是否大于4096,是为1,否为0;用于计算云台偏转角度
 #define PITCH_HORIZON_ECD         2100  // 云台处于水平位置时编码器值,若对云台有机械改动需要修改
 #define PITCH_MAX_ANGLE           25.f  // 云台竖直方向最大角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
 #define PITCH_MIN_ANGLE           -20.f // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
@@ -45,6 +45,7 @@
 #define REDUCTION_RATIO_LOADER 36.0f // 拨盘电机的减速比,英雄需要修改为3508的19.0f
 #define REDUCTION_RATIO_BOPAN 3.0f   //拨盘电机与拨抓减速比
 #define NUM_PER_CIRCLE         8     // 拨盘一圈的装载量
+#define SHOOT_RATE             8
 
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 #if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
@@ -89,7 +90,11 @@ typedef enum {
     CHASSIS_SLOW,           // 底盘转速慢
     CHASSIS_FOLLOW_GIMBAL_YAW,
     CHASSIS_FIXED_ANGULAR_RATE, //小陀螺
-    CHASSIS_DIRECT_GIMBAL_WZ,   //底盘云台分离    
+    CHASSIS_DIRECT_GIMBAL_WZ,   //底盘云台分离 
+    
+    
+    CHASSIS_NAV,
+    CHASSIS_GIMBAL_FOLLOW,
 } chassis_mode_e;
 
 typedef enum {

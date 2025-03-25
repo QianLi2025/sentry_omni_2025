@@ -28,6 +28,12 @@ typedef struct {
     uint16_t power;  // 底盘功率
     uint8_t state;   // 状态
 } SupCapSend_t;
+
+typedef enum {
+    SUP_CAP_STATE_DISCHARGING = 0, // 放电,根据电压状态判断当前需要充电还是放电
+    SUP_CAP_STATE_CHARGING,        // 充电,需要进行功率限制帮助超电充电
+} SupCapState_e;
+
 #pragma pack()
 
 /* 超级电容实例 */
@@ -36,7 +42,8 @@ typedef struct
     CAN_Instance *can_ins;   // CAN实例
     SuperCapData_t cap_data; // 超级电容信息
     SupCapSend_t send_data;  // 发送数据
-    Daemon_Instance *daemon; // 守护实例
+    Daemon_Instance *daemon; // 
+    SupCapState_e state
 } SuperCap_Instance;
 
 /* 超级电容初始化配置 */

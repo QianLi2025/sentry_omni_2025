@@ -55,7 +55,7 @@ void ChassisInit()
         .can_init_config.can_handle   = &hcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 11.5, // 4.5
+                .Kp            = 13, // 4.5
                 .Ki            = 0.5, // 0
                 .Kd            = 0, // 0
                 .IntegralLimit = 9000,
@@ -97,13 +97,13 @@ void ChassisInit()
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
     PID_Init_Config_s chassis_follow_pid_conf = {
-        .Kp                = 10,
-        .Ki                = 0.2f,
+        .Kp                = 100,
+        .Ki                = 2,
         .Kd                = 1.3,
         .MaxOut            = 10000,
         .DeadBand          = 0.1,
         .Improve           = PID_DerivativeFilter | PID_Derivative_On_Measurement,
-        .Derivative_LPF_RC = 0,
+        .Derivative_LPF_RC = 0.1,
     };
     PIDInit(&chassis_follow_pid, &chassis_follow_pid_conf);
 
@@ -158,68 +158,69 @@ static void MecanumCalculate()
 // static void Motor_Speed_limiting()
 // {
 // }
-
+int w_watch;
 /**
  * @brief
  *
  */
 // ** /
+static int v_max;
 static void LimitChassisOutput()
 {
+    // // 功率限制待添加
+    // uint16_t chassis_power_buffer = 0; // 底盘功率缓冲区
+    // // uint16_t chassis_power        = 0;
+    // uint16_t chassis_power_limit  = 0;
+    // float P_limit                 = 1; // 功率限制系数
+
+    // chassis_power_buffer = chassis_cmd_recv.chassis_power_buff;
+    // chassis_power_limit  = chassis_cmd_recv.chassis_power_limit;
+
     // 功率限制待添加
-    uint16_t chassis_power_buffer = 0; // 底盘功率缓冲区
-    // uint16_t chassis_power        = 0;
-    uint16_t chassis_power_limit  = 0;
-    float P_limit                 = 100; // 功率限制系数
+    uint16_t chassis_power_buffer = chassis_cmd_recv.chassis_power_buff; // 底盘功率缓冲区
+    float P_limit = 1; // 功率限制系数
 
-    chassis_power_buffer = chassis_cmd_recv.chassis_power_buff;
-    chassis_power_limit  = chassis_cmd_recv.chassis_power_limit;
-    // chassis_power_buffer = referee_data->PowerHeatData.buffer_energy;
-    // chassis_power        = referee_data->PowerHeatData.chassis_power;
-    // chassis_power_limit  = referee_data->GameRobotState.chassis_power_limit;
 
-    // switch (chassis_cmd_recv.super_cap_mode) {
-    //     case SUPER_CAP_OFF:
-    //         SuperCapSet(chassis_power_buffer, chassis_power_limit, 2); // 设置超级电容数据
-    //         break;
-    //     case SUPER_CAP_ON:
-    //         SuperCapSet(chassis_power_buffer,chassis_power_limit, 3); // 设置超级电容数据
-    //         break;
-    //     default:
-    //         break;
-    // }
+    // 获取当前机器人状态下的底盘功率限制
+    int W_limit =chassis_cmd_recv.chassis_power_limit;
+  
+    // 计算四个轮子目标速度的平均值
+    float v_arv = (abs(vt_lf)+abs(vt_rf)+abs(vt_lb)+abs(vt_rb))/4;
 
-    // if (chassis_cmd_recv.super_cap_mode == SUPER_CAP_OFF || super_cap->cap_data.voltage <= 12.f) {
-    //     // 当电容电量过低时强制关闭超电
-    //     chassis_cmd_recv.super_cap_mode = SUPER_CAP_OFF;
-    //     SuperCapSet(chassis_power_buffer, chassis_power_limit, 2);        /*缓冲能量占比环，总体约束*/
-    //     if (chassis_power_buffer >= 50) {
-    //         P_limit = 1;
-    //     } else {
-    //         P_limit = chassis_power_buffer / 50.f;
-    //     }
-    //     // else if (chassis_power_buffer < 50 && chassis_power_buffer >= 40)
-    //     //     P_limit = 0.9; // 近似于以一个线性来约束比例（为了保守可以调低Plimit，但会影响响应速度）
-    //     // else if (chassis_power_buffer < 40 && chassis_power_buffer >= 35)
-    //     //     P_limit = 0.75;
-    //     // else if (chassis_power_buffer < 35 && chassis_power_buffer >= 30)
-    //     //     P_limit = 0.5;
-    //     // else if (chassis_power_buffer < 30 && chassis_power_buffer >= 20)
-    //     //     P_limit = 0.25;
-    //     // else if (chassis_power > chassis_power_limit && chassis_power_buffer < 20 && chassis_power_buffer >= 10)
-    //     //     P_limit = 0.125;
-        // else if (chassis_power > chassis_power_limit && chassis_power_buffer < 10 && chassis_power_buffer > 0)
-        //     P_limit = 0.05;
-        // else
-        //     P_limit = 0.125;
-    //} else {
-        chassis_cmd_recv.super_cap_mode = SUPER_CAP_ON;
-        SuperCapSet(chassis_power_buffer, chassis_power_limit, 3); //3开启超电
-        //P_limit = 1;
-    //}
-    // ui_data.Chassis_Power_Data.chassis_power_mx = super_cap->cap_data.voltage;
+    // 如果当前平均速度大于最大速度记录，则更新最大速度记录
+    if(v_arv > v_max)
+    {
+        v_max = v_arv;
+    }
+    if(super_cap->state == SUP_CAP_STATE_CHARGING){   
+    // 根据当前平均速度和最大速度调整功率限制
+    W_limit = W_limit*(1 - v_arv/v_max);
+    // 如果调整后的功率限制小于等于0，则设置为底盘功率限制的20%
+    if(W_limit <= 0)
+    {
+        W_limit = chassis_cmd_recv.chassis_power_limit * 0.2;
+    }
+    }
+
+    // 更新监控的功率限制值
+    w_watch = W_limit;
+
+    SuperCapSet(chassis_power_buffer, W_limit, 3); //3开启超电
+
+
     SuperCapSend(); // 发送超级电容数据
     // 完成功率限制后进行电机参考输入设定
+
+    // 根据底盘电源缓冲区的值来设定功率限制
+    if (chassis_power_buffer >= 30) {
+        // 当底盘电源缓冲区的值大于等于30时，将功率限制设置为1（即最大功率）
+        P_limit = 1;
+    } else {
+        // 当底盘电源缓冲区的值小于30时，将功率限制设置为缓冲区值除以30的结果
+        // 这样可以确保在电源缓冲区较低时，功率限制较小，以防超功率扣血
+        P_limit = chassis_power_buffer / 20.f;
+    }
+
     DJIMotorSetRef(motor_lf, vt_lf * P_limit);
     DJIMotorSetRef(motor_rf, vt_rf * P_limit);
     DJIMotorSetRef(motor_lb, vt_lb * P_limit);
@@ -277,14 +278,25 @@ void ChassisTask()
     //     default:
     //         break;
     // }
+switch (chassis_cmd_recv.chassis_mode)
+{
+    case CHASSIS_NAV:
+        
+    break;
 
-    offset_angle = chassis_cmd_recv.offset_angle;
-    if (offset_angle<5 && offset_angle>-5)
-    {
-        offset_angle = 0;
-    }
+    case CHASSIS_GIMBAL_FOLLOW :
+        offset_angle = chassis_cmd_recv.offset_angle;
+        if (offset_angle<5 && offset_angle>-5)
+        {
+            offset_angle = 0;
+        }
+        chassis_cmd_recv.wz = PIDCalculate(&chassis_follow_pid, offset_angle,0);
+    break;
 
-    chassis_cmd_recv.wz = PIDCalculate(&chassis_follow_pid, offset_angle,0);
+    default:
+    break;
+}
+
 
     // 根据云台和底盘的角度offset将控制量映射到底盘坐标系上
     // 底盘逆时针旋转为角度正方向;云台命令的方向以云台指向的方向为x,采用右手系(x指向正北时y在正东)

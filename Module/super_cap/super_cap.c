@@ -23,6 +23,15 @@ static void SuperCapRxCallback(CAN_Instance *_instance)
     data->voltage          = (((uint16_t)rxbuff[0] << 8) | rxbuff[1]) / 1000;
     data->power            = (((uint16_t)rxbuff[2] << 8) | rxbuff[3]) / 1000;
     data->status           = rxbuff[4];
+
+        // 根据电压值和当前状态决定超级电容的充放电状态
+        if (data->voltage < 9 && ins->state == SUP_CAP_STATE_DISCHARGING) {
+            // 当电压低于9V且当前状态为放电时，切换为充电状态,根据目标速度限制充电功率（实现在底盘功率限制函数中）
+            ins->state = SUP_CAP_STATE_CHARGING;
+        } else if (data->voltage > 12 && ins->state == SUP_CAP_STATE_CHARGING) {
+            // 当电压高于12V且当前状态为充电时，切换为放电状态
+            ins->state = SUP_CAP_STATE_DISCHARGING;
+        }
 }
 
 static void SuperCapLostCallback(void *cap_ptr)

@@ -9,8 +9,8 @@
  *
  */
 
-#ifndef MINIPC_PROCESS_H
-#define MINIPC_PROCESS_H
+#ifndef NAVI_PROCESS_H
+#define NAVI_PROCESS_H
 
 #include "stdint.h"
 #include "bsp_usart.h"
@@ -24,44 +24,44 @@
 
 // #pragma pack(1) // 1字节对齐
 
-/* 是否追踪 */
-typedef enum {
-    VISION_NO_SHOOTING = 0u,
-    VISION_SHOOTING    = 1u,
-} VISION_SHOOTING_e;
+// /* 是否追踪 */
+// typedef enum {
+//     VISION_NO_SHOOTING = 0u,
+//     VISION_SHOOTING    = 1u,
+// } VISION_SHOOTING_e;
 
-/* 是否重置追踪 */
-typedef enum {
-    VISION_RESET_TRACKER_NO  = 0u,
-    VISION_RESET_TRACKER_YES = 1u,
-} VISION_RESET_TRACKER_e;
+// /* 是否重置追踪 */
+// typedef enum {
+//     VISION_RESET_TRACKER_NO  = 0u,
+//     VISION_RESET_TRACKER_YES = 1u,
+// } VISION_RESET_TRACKER_e;
 
-/* 目标ID */
-typedef enum {
-    VISION_OUTPOST = 0u,
-    VISION_GUARD   = 6u,
-    VISION_BASE    = 7u,
-} VISION_ID_e;
+// /* 目标ID */
+// typedef enum {
+//     VISION_OUTPOST = 0u,
+//     VISION_GUARD   = 6u,
+//     VISION_BASE    = 7u,
+// } VISION_ID_e;
 
-/* 装甲板数量 */
-typedef enum {
-    VISION_ARMORS_NUM_BALANCE = 2u,
-    VISION_ARMORS_NUM_OUTPOST = 3u,
-    VISION_ARMORS_NUM_NORMAL  = 4u,
-} VISION_ARMORS_NUM_e;
+// /* 装甲板数量 */
+// typedef enum {
+//     VISION_ARMORS_NUM_BALANCE = 2u,
+//     VISION_ARMORS_NUM_OUTPOST = 3u,
+//     VISION_ARMORS_NUM_NORMAL  = 4u,
+// } VISION_ARMORS_NUM_e;
 
-/* 敌方装甲板颜色 */
-typedef enum {
-    VISION_DETECT_COLOR_RED  = 0u,
-    VISION_DETECT_COLOR_BLUE = 1u,
-} VISION_DETECT_COLOR_e;
+// /* 敌方装甲板颜色 */
+// typedef enum {
+//     VISION_DETECT_COLOR_RED  = 0u,
+//     VISION_DETECT_COLOR_BLUE = 1u,
+// } VISION_DETECT_COLOR_e;
 
-typedef enum {
-    COLOR_NONE = 0,
-    COLOR_BLUE = 1,
-    COLOR_RED  = 2,
+// typedef enum {
+//     COLOR_NONE = 0,
+//     COLOR_BLUE = 1,
+//     COLOR_RED  = 2,
 
-} Self_Color_e;
+// } Self_Color_e;
 
 /* 视觉通信初始化接收结构体 */
 typedef struct

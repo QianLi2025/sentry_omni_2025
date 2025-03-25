@@ -29,6 +29,7 @@
 #include "DJI_motor.h"
 #include "UARTComm.h"
 #include "bsp_dwt.h"
+
 // 私有宏,自动将编码器转换成角度值
 #define YAW_ALIGN_ANGLE     (YAW_CHASSIS_ALIGN_ECD * ECD_ANGLE_COEF_DJI) // 对齐时的角度,0-360
 #define PTICH_HORIZON_ANGLE (PITCH_HORIZON_ECD * ECD_ANGLE_COEF_DJI)     // pitch水平时电机的角度,0-360
@@ -50,12 +51,14 @@ static attitude_t *gimba_IMU_data; // 云台IMU数据
 #ifdef CHASSIS_BOARD
 #include "UARTComm.h"
 #include "referee_UI.h"
+#include "Navi_process.h"
 static UARTComm_Instance *chassis_uart_comm; // 双板通信
 static CMD_Chassis_Send_Data_s chassis_comm_send;
 static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
 
 static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
 static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
+static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
 #endif
 
 #ifdef ONE_BOARD
@@ -88,6 +91,8 @@ static void EmergencyHandler(void) __attribute__((used));
 static void CalcOffsetAngle(void); // 计算云台和底盘的偏转角度
 
 static Robot_Status_e robot_state; // 机器人整体工作状态
+
+// static int watch_frispel,watch_frrsper;
 
 #ifdef GIMBAL_BOARD
 /**
@@ -148,6 +153,7 @@ void GimbalCMDGet(void) //获取反馈数据
     // shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
     gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
+
 }
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 2;
@@ -257,26 +263,54 @@ static void RemoteControlSet(void)
     chassis_cmd_send.chassis_mode   = CHASSIS_SLOW; // 底盘模式
     gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
     chassis_cmd_send.super_cap_mode = SUPER_CAP_ON;
-//上巡航，中遥控，下导航
-    if(switch_is_mid(rc_data[TEMP].rc.switch_right)){
-        gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
-        gimbal_cmd_send.yaw -= 0.004f * (float)rc_data[TEMP].rc.rocker_r_;
-        gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
+
+
+    // 上巡航+导航
+    //中遥控+自瞄
+    //下导航
+    
+    //底盘参数
+    //上：导航小陀螺 底盘小陀螺
+    //中：遥控  底盘跟随
+    //底：纯导航 底盘跟随
+    // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
+    // max 70.f,参数过大会达到电机的峰值速度，导致底盘漂移等问题，且毫无意义
+    chassis_cmd_send.vx = -80.0f * (float)rc_data[TEMP].rc.rocker_l_; // _水平方向
+    chassis_cmd_send.vy = -80.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
+    chassis_cmd_send.wz = -50.0f * (float)rc_data[TEMP].rc.dial;
+    // chassis_cmd_send.wz = (float)rc_data[TEMP].rc.dial*360/660+chassis_cmd_send.wz;
+    chassis_cmd_send.chassis_angle = chassis_cmd_send.chassis_angle;         
+    if(switch_is_up(rc_data[TEMP].rc.switch_right) || switch_is_down(rc_data[TEMP].rc.switch_right))
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_NAV;
     }
-     else if(switch_is_up(rc_data[TEMP].rc.switch_right)||!vision_ctrl->is_tracking){
-        gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
-        gimbal_cmd_send.yaw = gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
+    else 
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_GIMBAL_FOLLOW;
     }
 
-     else  if(switch_is_down(rc_data[TEMP].rc.switch_right||vision_ctrl->is_tracking)){
-        gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE;
+
+    //云台参数 //上巡航，中下遥控
+    // 自瞄，左侧开关为中上是自瞄
+    if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl->is_tracking) // 左侧开关状态为[中] / [上],视觉模式
+    {
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
         gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
         gimbal_cmd_send.pitch = (vision_ctrl->pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl->pitch);
     }
+    else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl->is_tracking){
+    
+        gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
+        gimbal_cmd_send.yaw = gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
+    }
+    else {
+        gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE ;
+        gimbal_cmd_send.yaw -= 0.003f * (float)rc_data[TEMP].rc.rocker_r_;
+        gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
+    }
 
 
-
-    // // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
+    // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
     // if (switch_is_down(rc_data[TEMP].rc.switch_left)) {
     //    gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
     //     // 按照摇杆的输出大小进行角度增量,增益系数需调整
@@ -298,18 +332,10 @@ static void RemoteControlSet(void)
     else if (gimbal_cmd_send.pitch < PITCH_MIN_ANGLE)
         gimbal_cmd_send.pitch = PITCH_MIN_ANGLE;
 
-    // 底盘参数,目前没有加入小陀螺(调试似乎暂时没有必要),系数需要调整
-    // max 70.f,参数过大会达到电机的峰值速度，导致底盘漂移等问题，且毫无意义
-    chassis_cmd_send.vx = -60.0f * (float)rc_data[TEMP].rc.rocker_l_; // _水平方向
-    chassis_cmd_send.vy = -60.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
-    // chassis_cmd_send.wz = (float)rc_data[TEMP].rc.dial*360/660+chassis_cmd_send.wz;
-    chassis_cmd_send.chassis_angle = chassis_cmd_send.chassis_angle;               
+      
 
-    // 发射参数
-    if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 左侧开关状态[上],弹舱打开
-        shoot_cmd_send.lid_mode = LID_OPEN;           // 弹舱舵机控制,待添加servo_motor模块,开启
-    else
-        shoot_cmd_send.lid_mode = LID_CLOSE; // 弹舱舵机控制,待添加servo_motor模块,关闭     // _水平方向
+    // // 发射参数
+ 
 
     // 摩擦轮控制,拨轮向上打为负,向下为正
     if (switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) // 向上超过100,打开摩擦轮
@@ -317,18 +343,26 @@ static void RemoteControlSet(void)
     else
         shoot_cmd_send.friction_mode = FRICTION_OFF;
 
-    // 拨弹控制,遥控器固定为一种拨弹模式,可自行选择
-    if (switch_is_up(rc_data[TEMP].rc.switch_left))
-        //  shoot_cmd_send.load_mode = LOAD_3_BULLET;
-        shoot_cmd_send.load_mode = LOAD_MEDIUM;
-    else
-        shoot_cmd_send.load_mode = LOAD_STOP;
-
+    // 拨弹控制,遥控器固定为一种拨弹模式,
+   
+    if( shoot_cmd_send.friction_mode == FRICTION_ON){
+        if (vision_ctrl->is_shooting == 1)
+        {
+            shoot_cmd_send.load_mode = LOAD_MEDIUM;
+        }   
+        else if (switch_is_up(rc_data[TEMP].rc.switch_left))
+        {
+            shoot_cmd_send.load_mode = LOAD_MEDIUM; 
+        }
+        else
+            shoot_cmd_send.load_mode = LOAD_STOP;
+    }
     // if (vision_ctrl->is_shooting == 0)
     //     shoot_cmd_send.load_mode = LOAD_STOP;
 
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
-    shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*15/660;
+    // shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*15/660;
+    shoot_cmd_send.shoot_rate = SHOOT_RATE;
 }
 #endif // DEBUG
 
@@ -357,6 +391,7 @@ void ChassisCMDInit(void)
 
     referee_data = UITaskInit(&huart6, &ui_data); // 裁判系统初始化,会同时初始化UI    
 
+    navigation_ctrl = NavigationInit(&huart1);
     // 配置UART通信初始化参数
     UARTComm_Init_Config_s comm_conf = {
         .uart_handle = &huart1,
@@ -451,7 +486,35 @@ void ChassisCMDTask(void)
     // 我方颜色id小于10是红色,大于10是蓝色,注意这里发送的是自己的颜色, 1:blue , 2:red
     robot_fetch_data.self_color = referee_data->GameRobotState.robot_id > 10 ? COLOR_BLUE : COLOR_RED;
 
+    if(chassis_cmd_send.chassis_mode == CHASSIS_GIMBAL_FOLLOW)
+    {
+    
+    }
+    else if (chassis_cmd_send.chassis_mode == CHASSIS_NAV)
+    {
+        //  gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
+        chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
+        chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
+        chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
+    }
+
+
+    //发射火控
+    if(shoot_cmd_send.rest_heat<80)
+    {
+        shoot_cmd_send.shoot_rate = referee_data->GameRobotState.shooter_barrel_cooling_value / 10;
+    }
+     if(shoot_cmd_send.rest_heat<40)
+    {
+        shoot_cmd_send.shoot_rate = (referee_data->GameRobotState.shooter_barrel_cooling_value / 10)-1;
+    }
+     if (shoot_cmd_send.rest_heat<0)
+    {
+        shoot_cmd_send.shoot_rate = 1;
+    }
+
     ChassisCMDSend();
+    NavigationSend();
 }
 #endif
 

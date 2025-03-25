@@ -23,6 +23,8 @@ static float pitch_current;
 static float pitch_motor_angle;
 
 static DJIMotor_Instance *yaw_motor;
+#ifdef CHASSIS_BOARD
+ 
 
 static float delt_time_yaw,current,last=0;
 void YawInit (){
@@ -34,9 +36,9 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 70,
-                .Ki                = 0,
-                .Kd                = 0.2,
+                .Kp                = 65,
+                .Ki                = 0.2,
+                .Kd                = 0.1,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
@@ -79,6 +81,7 @@ void YawInit (){
         // DJIMotorSetRef(yaw_motor, target_yaw);
 
 }
+#endif // DEBUG
 void YawTask(){
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
 
@@ -95,10 +98,11 @@ void YawTask(){
         // 使用陀螺仪的反馈,底盘根据yaw电机的offset跟随云台或视觉模式采用
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             DJIMotorEnable(yaw_motor);
-         yaw_motor->motor_controller.speed_PID.Kp =33;
-            yaw_motor->motor_controller.speed_PID.Ki =0;
-            yaw_motor->motor_controller.angle_PID.Kp =60;
-            yaw_motor->motor_controller.angle_PID.Kd =0.5;
+            yaw_motor->motor_controller.speed_PID.Kp =45;
+            yaw_motor->motor_controller.speed_PID.Ki =0.01;
+    
+            // yaw_motor->motor_controller.angle_PID.Kp =60;
+            // yaw_motor->motor_controller.angle_PID.Kd =0.5;
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
 
             //  if(gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle+gimbal_cmd_recv.yaw>90){
@@ -111,7 +115,7 @@ void YawTask(){
         DJIMotorEnable(yaw_motor);
 
         DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
-            yaw_motor->motor_controller.speed_PID.Kp =50;
+            yaw_motor->motor_controller.speed_PID.Kp =60;
             yaw_motor->motor_controller.speed_PID.Ki =2;           
             DJIMotorSetRef(yaw_motor, 200);
         default:
@@ -124,9 +128,9 @@ void YawTask(){
     // 设置反馈数据,主要是imu和yaw的ecd
     gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor->measure.angle_single_round;
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
-    current = DWT_GetTimeline_ms();
-    delt_time_yaw = current - last;
-    last = current;
+    // current = DWT_GetTimeline_ms();
+    // delt_time_yaw = current - last;
+    // last = current;
 }
 
 # if defined(GIMBAL_BOARD)
@@ -204,7 +208,7 @@ void PitchTask(){
         // 巡航模式
         case GIMBAL_CRUISE_MODE:
             LKMotorEnable(pitch_motor);
-            pitch_cd_ms= DWT_GetTimeline_ms()/300.0f;
+            pitch_cd_ms= DWT_GetTimeline_ms()/150.0f;
             pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
             if(last_pitch-pitch_cd_ms<20){
                 last_pitch =pitch_cd_ms;
