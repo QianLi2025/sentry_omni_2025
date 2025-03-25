@@ -85,11 +85,11 @@ __attribute__((noreturn)) void StartVISIONCOM(void const *argument)
         osDelay(2);
     }
 }
-
+static float ins_dt __attribute__((unused)); // for cancel warning
 __attribute__((noreturn)) void StartINSTASK(void const *argument)
 {
     static float ins_start;
-    static float ins_dt __attribute__((unused)); // for cancel warning
+
     INS_Init();                                  // 确保BMI088被正确初始化.
     for (;;) {
         // 1kHz

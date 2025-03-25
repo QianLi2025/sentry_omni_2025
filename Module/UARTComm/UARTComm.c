@@ -5,13 +5,13 @@
 #include "bsp_dwt.h"
 
 static UARTComm_Instance *ucomm;
-static float delt_time,recvtime,correcttime,lastcorrecttime;
-static int recv,corect,err;
+// static float delt_time,recvtime,correcttime,lastcorrecttime;
+// static int recv,corect,err;
 
 static void UARTCommRxCallback(void)
 {
-    recvtime = DWT_GetTimeline_ms();
-    recv++;
+    // recvtime = DWT_GetTimeline_ms();
+    // recv++;
     /* 当前接收状态判断 */
      if (ucomm->uart_instance->recv_buff[0] == UARTCOMM_HEADER && ucomm->recv_state == 0) {
         if (ucomm->uart_instance->recv_buff[1] == ucomm->recv_data_len) // 如果这一包里的datalen也等于我们设定接收长度(这是因为暂时不支持动态包长)
@@ -27,18 +27,17 @@ static void UARTCommRxCallback(void)
             uint8_t crc8 = crc_8(ucomm->uart_instance->recv_buff + 2, ucomm->recv_data_len); // 计算crc8
             if (crc8 == ucomm->uart_instance->recv_buff[ucomm->recv_buf_len - 2])            // 如果crc8正确
             {
-                correcttime = DWT_GetTimeline_ms();
-                delt_time = correcttime - lastcorrecttime;
-                lastcorrecttime = correcttime;
-                corect++;
+                // correcttime = DWT_GetTimeline_ms();
+                // delt_time = correcttime - lastcorrecttime;
+                // lastcorrecttime = correcttime;
+                // corect++;
                 memcpy(ucomm->unpacked_recv_data, ucomm->uart_instance->recv_buff + 2, ucomm->recv_data_len); // 拷贝数据
                 DaemonReload(ucomm->ucomm_daemon);
             }
         }
     }
     ucomm->recv_state = 0; // 接收状态重置
-    err = recv - corect;
-    
+    // err = recv - corect;   
 }
 
 static void UARTCommLostCallback(void *arg)
@@ -73,7 +72,8 @@ UARTComm_Instance *UARTCommInit(UARTComm_Init_Config_s *config)
     ucomm->ucomm_daemon = DaemonRegister(&daemon_conf);
     return ucomm;
 }
-
+// int send,busy;
+// int cure,delt,lastt;
 void UARTCommSend(UARTComm_Instance *ins, uint8_t *send_data)
 {
     static uint8_t crc8;
@@ -82,7 +82,17 @@ void UARTCommSend(UARTComm_Instance *ins, uint8_t *send_data)
     crc8                                     = crc_8(send_data, ins->send_data_len);
     ins->raw_sendbuf[2 + ins->send_data_len] = crc8;
     // 发送
-    USARTSend(ucomm->uart_instance, ins->raw_sendbuf, ins->send_buf_len, USART_TRANSFER_BLOCKING);
+    if(USARTIsReady(ucomm->uart_instance)){
+    USARTSend(ucomm->uart_instance, ins->raw_sendbuf, ins->send_buf_len, USART_TRANSFER_DMA);
+    // send ++;
+    // cure = DWT_GetTimeline_ms();
+    // delt = cure - lastt;
+    // lastt = cure;    
+    }
+    else{
+        // busy++;
+        return ;
+    }
 }
 
 void *UARTCommGet(UARTComm_Instance *instance)

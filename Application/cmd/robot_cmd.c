@@ -162,8 +162,8 @@ void GimbalCMDGet(void) //获取反馈数据
 
 
 }
-// dwt定时,计算冷却用
-static float hibernate_time = 0, dead_time = 2;
+static float tc,tl,td;
+static float hibernate_time,dead_time;
 void GimbalCMDSend(void)
 {   
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
@@ -190,14 +190,17 @@ void GimbalCMDSend(void)
 
 
     
-    // if (hibernate_time + dead_time > DWT_GetTimeline_ms())
-    // return;
-    // else
-    // {
+    if (hibernate_time + dead_time > DWT_GetTimeline_ms())
+    return;
+    else
+    {
     UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
-    // hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
-    // dead_time      = 2; // 10ms发送一次   
-    // }
+    hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
+    dead_time      = 1; // 2ms发送一次   
+    }
+    tc = DWT_GetTimeline_ms();
+    td = tc-tl;
+    tl = tc;
 }
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
