@@ -157,7 +157,9 @@ void LoaderTask(){
     // 单发模式主要提供给能量机关激活使用(以及英雄的射击大部分处于单发)
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
         return;
-    
+    if(loader->measure.real_current>5000){
+        shoot_cmd_recv.load_mode = LOAD_REVERSE;
+    }
     // 若不在休眠状态,根据robotCMD传来的控制模式进行拨盘电机参考值设定和模式切换
     switch (shoot_cmd_recv.load_mode) {
         // 停止拨盘
@@ -193,7 +195,8 @@ void LoaderTask(){
         // 也有可能需要从switch-case中独立出来
         case LOAD_REVERSE:
             DJIMotorOuterLoop(loader, SPEED_LOOP);
-            DJIMotorSetRef(loader, shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER*REDUCTION_RATIO_BOPAN / 16);
+            DJIMotorSetRef(loader, -shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER*REDUCTION_RATIO_BOPAN *2);
+            dead_time=500;
             // ...
             break;
         default:

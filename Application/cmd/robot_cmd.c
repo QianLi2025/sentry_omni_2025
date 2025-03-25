@@ -43,9 +43,11 @@ static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
 static float yanshi_time=0;
 static float yanshi_time_last=0; 
 static float yanshi_time_erro=0;
-static Vision_Recv_s *vision_ctrl; // 视觉控制信息
+static Vision_Recv_s vision_ctrl; // 视觉控制信息
 static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 static attitude_t *gimba_IMU_data; // 云台IMU数据
+static Subscriber_t *Vision_ctrl_sub;
+static Publisher_t *robot_fetch_pub;
 #endif
 
 #ifdef CHASSIS_BOARD
@@ -112,11 +114,14 @@ void GimbalCMDInit(void)
     shoot_cmd_pub  = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
     // 注册射击反馈的订阅者
     shoot_feed_sub = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
+
+    robot_fetch_pub = PubRegister("robot_fetch", sizeof(Robot_Upload_Data_s));
+
+    Vision_ctrl_sub = SubRegister("vision_ctrl", sizeof(Vision_Recv_s));
  
     // 初始化遥控器,使用串口3
     rc_data = RemoteControlInit(&huart3); // 初始化遥控器,C板上使用USART3
-    // 初始化视觉控制
-    vision_ctrl  = VisionInit(&huart1);
+
 
     gimba_IMU_data = INS_Init();
     // 配置UART通信初始化参数
@@ -145,6 +150,7 @@ void GimbalCMDInit(void)
 void GimbalCMDGet(void) //获取反馈数据
 {
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
+    SubGetMessage(Vision_ctrl_sub, &vision_ctrl);
     yanshi_time = DWT_GetTimeline_ms();
     yanshi_time_erro =yanshi_time-yanshi_time_last;
     yanshi_time_last = yanshi_time;
@@ -154,6 +160,7 @@ void GimbalCMDGet(void) //获取反馈数据
     gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
 
+
 }
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 2;
@@ -161,6 +168,7 @@ void GimbalCMDSend(void)
 {   
     PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
+    PubPushMessage(robot_fetch_pub, (void*)&robot_fetch_data);
 
     gimbal_comm_send.Shoot_Ctr_Cmd.is_tracking = shoot_cmd_send.is_tracking;
     gimbal_comm_send.Shoot_Ctr_Cmd.shoot_rate = shoot_cmd_send.shoot_rate;
@@ -181,7 +189,7 @@ void GimbalCMDSend(void)
     gimbal_comm_send.Chassis_Ctr_Cmd.offset_angle = chassis_cmd_send.offset_angle;
 
 
-    VisionSend();
+    
     // if (hibernate_time + dead_time > DWT_GetTimeline_ms())
     // return;
     // else
@@ -200,21 +208,8 @@ void GimbalCMDTask(void)
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
     shoot_cmd_send.rest_heat = robot_fetch_data.shoot_limit - robot_fetch_data.shoot_heat - 20; // 计算剩余热量
-        RemoteControlSet();
+    RemoteControlSet();
   
-    // 设置视觉发送数据,还需增加加速度和角速度数据
-    
-    static float yaw, pitch, roll, bullet_speed, yaw_speed;
-   
-    yaw          = gimba_IMU_data->YawTotalAngle;
-    pitch        = gimba_IMU_data->Roll;
-    roll         = gimba_IMU_data->Pitch;
-    bullet_speed = robot_fetch_data.bullet_speed;
-    yaw_speed    = gimba_IMU_data->Gyro[2];
-
-    // VisionSetDetectColor(robot_fetch_data.self_color);
-    VisionSetDetectColor(5);
-    VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
 
     // 发送控制信息
     // 推送消息,双板通信,视觉通信等
@@ -292,13 +287,13 @@ static void RemoteControlSet(void)
 
     //云台参数 //上巡航，中下遥控
     // 自瞄，左侧开关为中上是自瞄
-    if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl->is_tracking) // 左侧开关状态为[中] / [上],视觉模式
+    if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl.is_tracking) // 左侧开关状态为[中] / [上],视觉模式
     {
         gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-        gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
-        gimbal_cmd_send.pitch = (vision_ctrl->pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl->pitch);
+        gimbal_cmd_send.yaw   = (vision_ctrl.yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl.yaw);
+        gimbal_cmd_send.pitch = (vision_ctrl.pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl.pitch);
     }
-    else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl->is_tracking){
+    else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl.is_tracking){
     
         gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
         gimbal_cmd_send.yaw = gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
@@ -340,13 +335,16 @@ static void RemoteControlSet(void)
     // 摩擦轮控制,拨轮向上打为负,向下为正
     if (switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) // 向上超过100,打开摩擦轮
         shoot_cmd_send.friction_mode = FRICTION_ON;
-    else
+    else{
         shoot_cmd_send.friction_mode = FRICTION_OFF;
-
+        if(switch_is_down(rc_data[TEMP].rc.switch_right)){
+            shoot_cmd_send.load_mode = LOAD_REVERSE;
+        }
+}
     // 拨弹控制,遥控器固定为一种拨弹模式,
    
     if( shoot_cmd_send.friction_mode == FRICTION_ON){
-        if (vision_ctrl->is_shooting == 1)
+        if (vision_ctrl.is_shooting == 1)
         {
             shoot_cmd_send.load_mode = LOAD_MEDIUM;
         }   

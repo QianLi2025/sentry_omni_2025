@@ -135,7 +135,8 @@
           "Module/motor/LKmotor",
           "Application/Newgimbal",
           "Application/Newshoot",
-          "Module/Navigation"
+          "Module/Navigation",
+          "Application/VisionCom"
         ],
         "libList": [
           "Middlewares/ST/ARM/DSP/Lib"

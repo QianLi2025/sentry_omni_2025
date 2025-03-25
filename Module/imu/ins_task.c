@@ -115,6 +115,8 @@ attitude_t *INS_Init(void)
     return (attitude_t *)&INS.Gyro; // @todo: 这里偷懒了,不要这样做! 修改INT_t结构体可能会导致异常,待修复.
 }
 
+float current,delttime,last;
+
 /* 注意以1kHz的频率运行此任务 */
 void INS_Task(void)
 {
@@ -123,7 +125,9 @@ void INS_Task(void)
 
     dt = DWT_GetDeltaT(&INS_DWT_Count);
     t += dt;
-
+    current = DWT_GetTimeline_ms();
+    delttime = current - last;
+    last = current;
     // ins update
     if ((count % 1) == 0)
     {

@@ -24,6 +24,8 @@
 #include "referee_task.h"
 #include "dmmotor.h"
 
+#include "visioncom.h"
+
 #include "bsp_usart.h"
 #include "bsp_dwt.h"
 
@@ -32,12 +34,14 @@ osThreadId motorTaskHandle;
 osThreadId robotTaskHandle;
 osThreadId daemonTaskHandle;
 osThreadId uiTaskHandle;
+osThreadId visioncomTaskHandle;
 
 void StartINSTASK(void const *argument);
 void StartMOTORTASK(void const *argument);
 void StartROBOTTASK(void const *argument);
 void StartDAEMONTASK(void const *argument);
 void StartUITASK(void const *argument);
+void StartVISIONCOM(void const *argument);
 
 /**
  * @brief 初始化机器人RTOS任务，所有外加的RTOS任务都在这里初始化
@@ -45,6 +49,11 @@ void StartUITASK(void const *argument);
  */
 void OSTaskInit(void)
 {
+#ifdef GIMBAL_BOARD
+    osThreadDef(visioncomtask, StartVISIONCOM, osPriorityAboveNormal, 0, 256);
+    visioncomTaskHandle = osThreadCreate(osThread(visioncomtask), NULL); 
+#endif
+
     osThreadDef(instask, StartINSTASK, osPriorityRealtime, 0, 1024);
     insTaskHandle = osThreadCreate(osThread(instask), NULL); // 由于是阻塞读取传感器,为姿态解算设置较高优先级,确保以1khz的频率执行
 
@@ -61,6 +70,20 @@ void OSTaskInit(void)
     uiTaskHandle = osThreadCreate(osThread(uitask), NULL);
 
     DMMotorControlInit();
+}
+static float vision_dt __attribute__((unused)); // for cancel warning
+__attribute__((noreturn)) void StartVISIONCOM(void const *argument)
+{
+    static float vision_start;
+
+    VISIONCOM_Init();                                  // 确保BMI088被正确初始化.
+    for (;;) {
+        // 1kHz
+        vision_start = DWT_GetTimeline_ms();
+        VISIONCOM_Task();
+        vision_dt = DWT_GetTimeline_ms() - vision_start;
+        osDelay(2);
+    }
 }
 
 __attribute__((noreturn)) void StartINSTASK(void const *argument)
