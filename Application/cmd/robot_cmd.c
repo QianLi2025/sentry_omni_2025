@@ -354,9 +354,9 @@ static void RemoteControlSet(void)
         {
             shoot_cmd_send.load_mode = LOAD_MEDIUM; 
         }
-        else
-            shoot_cmd_send.load_mode = LOAD_STOP;
     }
+    else
+    shoot_cmd_send.load_mode = LOAD_STOP;
     // if (vision_ctrl->is_shooting == 0)
     //     shoot_cmd_send.load_mode = LOAD_STOP;
 
