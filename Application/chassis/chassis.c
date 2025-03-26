@@ -55,20 +55,20 @@ void ChassisInit()
         .can_init_config.can_handle   = &hcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 13, // 4.5
+                .Kp            = 17, // 4.5
                 .Ki            = 0.5, // 0
                 .Kd            = 0, // 0
-                .IntegralLimit = 9000,
+                .IntegralLimit = 12000,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut        = 12000,
             },
             .current_PID = {
-                .Kp            = 0.4, // 0.4
-                .Ki            = 0,  // 0
+                .Kp            = 0.5, // 0.4
+                .Ki            = 0.01,  // 0
                 .Kd            = 0,
-                .IntegralLimit = 3000,
+                .IntegralLimit = 16384,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut        = 15000,
+                .MaxOut        = 16384,
             },
         },
         .controller_setting_init_config = {
@@ -97,7 +97,7 @@ void ChassisInit()
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
     PID_Init_Config_s chassis_follow_pid_conf = {
-        .Kp                = 100,
+        .Kp                = 300,
         .Ki                = 2,
         .Kd                = 1.3,
         .MaxOut            = 10000,

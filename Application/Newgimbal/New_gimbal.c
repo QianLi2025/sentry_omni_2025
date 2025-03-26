@@ -36,14 +36,15 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 65,
-                .Ki                = 0.2,
-                .Kd                = 0.1,
+                .Kp                = 40,
+                .Ki                = 0.1,
+                .Kd                = 0.5
+                ,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
                 .IntegralLimit     = 10,
                 .CoefB             = 0.3,
                 .CoefA             = 0.2,
-                .MaxOut            = 6000,//4000
+                .MaxOut            = 8000,//4000
                 .Derivative_LPF_RC = 0.25,
             },
             .speed_PID = {

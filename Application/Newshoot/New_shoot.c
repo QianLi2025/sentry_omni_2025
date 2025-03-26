@@ -117,8 +117,8 @@ void LoaderInit(){
                 .Derivative_LPF_RC = 0.01,
             },
             .speed_PID = {
-                .Kp            = 10,   // 10
-                .Ki            = 160, // 1
+                .Kp            = 8,   // 10
+                .Ki            = 150, // 1
                 .Kd            = 0,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 10000,
@@ -126,11 +126,11 @@ void LoaderInit(){
             },
             .current_PID = {
                 .Kp            = 0.7, // 0.7
-                .Ki            = 0,   // 0.1
+                .Ki            = 0.1,   // 0.1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
-                .IntegralLimit = 10000,
-                .MaxOut        = 15000,
+                .IntegralLimit = 16384,
+                .MaxOut        = 16384,
             },
         },
         .controller_setting_init_config = {
@@ -157,8 +157,10 @@ void LoaderTask(){
     // 单发模式主要提供给能量机关激活使用(以及英雄的射击大部分处于单发)
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
         return;
-    if(loader->measure.real_current>5000){
+    if(loader->measure.real_current>8000){
         shoot_cmd_recv.load_mode = LOAD_REVERSE;
+        hibernate_time = DWT_GetTimeline_ms();
+        dead_time = 200;    
     }
     // 若不在休眠状态,根据robotCMD传来的控制模式进行拨盘电机参考值设定和模式切换
     switch (shoot_cmd_recv.load_mode) {
@@ -196,7 +198,6 @@ void LoaderTask(){
         case LOAD_REVERSE:
             DJIMotorOuterLoop(loader, SPEED_LOOP);
             DJIMotorSetRef(loader, -shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER*REDUCTION_RATIO_BOPAN *2);
-            dead_time=500;
             // ...
             break;
         default:
