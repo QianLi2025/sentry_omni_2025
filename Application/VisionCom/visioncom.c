@@ -18,7 +18,6 @@ void VISIONCOM_Init(void){
     vision_ct  = VisionInit(&huart1);
     robot_feed_sub = SubRegister("robot_fetch", sizeof(Robot_Upload_Data_s));
     vision_ctrl_pub = PubRegister("vision_ctrl", sizeof(Vision_Recv_s));
-
 }
 
 void VISIONCOM_Task(void){
@@ -34,7 +33,7 @@ void VISIONCOM_Task(void){
     yaw_speed    = ins->Gyro[2];
 
     VisionSetDetectColor(robot_fetch.self_color);
-    VisionSetDetectColor(5);
+    // VisionSetDetectColor(5);
     VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
     VisionSend();
     PubPushMessage(vision_ctrl_pub, vision_ct);

@@ -219,6 +219,7 @@ static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
     recv->vx = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vx;
     recv->vy = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vy;
     recv->wz = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.wz;
+    recv->spiral_mode = RECEIVE_ROBOT_CMD_DATA.data.chassis.spiral_mode;
 }
 
 /**
@@ -354,11 +355,41 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *navi_usart_handle)
  * @param send 待发送数据
  *
  */
-void NavigationSend()
+void NavigationSend(referee_info_t *referee_data)
 {
     // static uint8_t send_buff[NAVIGATION_SEND_SIZE];
     // NaviSendProcess(navigation_instance->send_data, send_buff);
     //  USBTransmit(send_buff, NAVIGATION_SEND_SIZE);
+
+    uint32_t event_data = referee_data->EventData.event_type;
+    SEND_DATA_EVENT.data.non_overlapping_supply_zone = (event_data >> 0) & 0x01;
+    SEND_DATA_EVENT.data.overlapping_supply_zone = (event_data >> 1) & 0x01;
+    SEND_DATA_EVENT.data.supply_zone = (event_data >> 2) & 0x01;
+    SEND_DATA_EVENT.data.small_energy = (event_data >> 3) & 0x01;
+    SEND_DATA_EVENT.data.big_energy = (event_data >> 4) & 0x01;
+    SEND_DATA_EVENT.data.central_highland = (event_data >> 5) & 0x03;
+    SEND_DATA_EVENT.data.trapezoidal_highland = (event_data >> 7) & 0x03;
+    SEND_DATA_EVENT.data.center_gain_zone = (event_data >> 21) & 0x03;
+    
+    SEND_DATA_GAME_STATUS.data.game_progress = referee_data->GameState.game_progress;
+    SEND_DATA_GAME_STATUS.data.stage_remain_time = referee_data->GameState.stage_remain_time;
+
+    SEND_ROBOT_STATUS_DATA.data.robot_id = referee_data->GameRobotState.robot_id;
+    SEND_ROBOT_STATUS_DATA.data.robot_level = referee_data->GameRobotState.robot_level;
+    SEND_ROBOT_STATUS_DATA.data.current_hp = referee_data->GameRobotState.current_HP;
+    SEND_ROBOT_STATUS_DATA.data.maximum_hp = referee_data->GameRobotState.maximum_HP;
+    SEND_ROBOT_STATUS_DATA.data.shooter_barrel_cooling_value = referee_data->GameRobotState.shooter_barrel_cooling_value;
+    SEND_ROBOT_STATUS_DATA.data.shooter_barrel_heat_limit = referee_data->GameRobotState.shooter_barrel_heat_limit;
+    SEND_ROBOT_STATUS_DATA.data.shooter_17mm_1_barrel_heat = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+    SEND_ROBOT_STATUS_DATA.data.robot_pos_x = referee_data->GameRobotPos.x;
+    SEND_ROBOT_STATUS_DATA.data.robot_pos_y = referee_data->GameRobotPos.y;
+    SEND_ROBOT_STATUS_DATA.data.robot_pos_angle = referee_data->GameRobotPos.angle;
+    SEND_ROBOT_STATUS_DATA.data.armor_id = referee_data->RobotHurt.armor_id;
+    SEND_ROBOT_STATUS_DATA.data.hp_deduction_reason = referee_data->RobotHurt.hurt_type;
+    SEND_ROBOT_STATUS_DATA.data.projectile_allowance_17mm = referee_data->ProjectileAllowance.projectile_allowance_17mm;
+    SEND_ROBOT_STATUS_DATA.data.remaining_gold_coin = referee_data->ProjectileAllowance.remaining_gold_coin;
+
+
     UsbSendData();
 }
 

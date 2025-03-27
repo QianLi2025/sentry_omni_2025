@@ -456,8 +456,13 @@ void ChassisCMDGet(void)
 
 void RobotStateGet(void)
 {
-    // robot_fetch_data.bullet_speed
+
+
+    robot_fetch_data.shoot_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+    robot_fetch_data.shoot_limit  = referee_data->GameRobotState.shooter_barrel_heat_limit;
     robot_fetch_data.bullet_speed = referee_data->ShootData.bullet_speed;
+    // 我方颜色id小于10是红色,大于10是蓝色,注意这里发送的是自己的颜色, 1:blue , 2:red
+    robot_fetch_data.self_color = referee_data->GameRobotState.robot_id > 10 ? COLOR_BLUE : COLOR_RED;
 
     // robot_fetch_data.self_color = referee_data;
     // robot_fetch_data.shoot_heat = referee_data->ShootData;
@@ -484,25 +489,41 @@ void ChassisCMDSend(void)
 void ChassisCMDTask(void)
 {
     ChassisCMDGet();
-
-    robot_fetch_data.shoot_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
-    robot_fetch_data.shoot_limit  = referee_data->GameRobotState.shooter_barrel_heat_limit;
-    robot_fetch_data.bullet_speed = referee_data->ShootData.bullet_speed;
-    // 我方颜色id小于10是红色,大于10是蓝色,注意这里发送的是自己的颜色, 1:blue , 2:red
-    robot_fetch_data.self_color = referee_data->GameRobotState.robot_id > 10 ? COLOR_BLUE : COLOR_RED;
+    RobotStateGet();
 
     if(chassis_cmd_send.chassis_mode == CHASSIS_GIMBAL_FOLLOW)
     {
     
     }
-    else if (chassis_cmd_send.chassis_mode == CHASSIS_NAV)
+    else if (chassis_cmd_send.chassis_mode == CHASSIS_NAV) //导航与遥控混合控制 ATTENTION：此处各个if的先后顺序极其重要！谨慎修改！
     {
         //  gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
-        chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
-        chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
-        chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
-    }
+        // chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
+        // chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
+        // chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
+       if(navigation_ctrl->vx != 0 && navigation_ctrl->vy != 0)  //导航控制
+        {
+            //TODO:game progress限制待添加
+            chassis_cmd_send.vy = navigation_ctrl->vx * NAV_K;
+            chassis_cmd_send.vx = navigation_ctrl->vy * NAV_K;
+            // chassis_cmd_send.wz = navigation_ctrl->wz * NAV_K;
+            chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
+        }
+        else{
+            chassis_cmd_send.vx = chassis_cmd_send.vx;
+            chassis_cmd_send.vy = chassis_cmd_send.vy;
+            chassis_cmd_send.wz = chassis_cmd_send.wz;
+        }
 
+        if (navigation_ctrl->spiral_mode == SPIRAL_ON) //决策小陀螺控制
+        {
+            chassis_cmd_send.wz = 1000;
+        }
+        else if (navigation_ctrl->spiral_mode == SPIRAL_OFF)
+        {
+            chassis_cmd_send.wz = 0;
+        }
+    }
 
     //发射火控
     if(shoot_cmd_send.rest_heat<80)
@@ -519,7 +540,7 @@ void ChassisCMDTask(void)
     }
 
     ChassisCMDSend();
-    NavigationSend();
+    NavigationSend(referee_data);
 }
 #endif
 

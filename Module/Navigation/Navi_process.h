@@ -14,7 +14,7 @@
 
 #include "stdint.h"
 #include "bsp_usart.h"
-
+#include "rm_referee.h"
 #define NAVIGATION_RECV_HEADER 0xA5u // 视觉接收数据帧头
 #define NAVIGATION_SEND_HEADER 0x5Au // 视觉发送数据帧头
 #define NAVIGATION_SEND_TAIL   0xAAu // 视觉发送数据帧尾
@@ -62,6 +62,12 @@
 //     COLOR_RED  = 2,
 
 // } Self_Color_e;
+
+typedef enum
+{
+    SPIRAL_ON = 1u,
+    SPIRAL_OFF = 2u,
+} Chassis_Spiral_Mode;
 
 /* 视觉通信初始化接收结构体 */
 typedef struct
@@ -115,6 +121,7 @@ typedef struct
     float vx;  // (m/s) x方向速度
     float vy;  // (m/s) y方向速度
     float wz;  // (rad/s) 旋转速度
+    Chassis_Spiral_Mode spiral_mode; 
 
 } Navigation_Recv_s;
 
@@ -192,7 +199,7 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *video_usart_handle);
  *
  *
  */
-void NavigationSend();
+void NavigationSend(referee_info_t *referee_data);
 
 // /**
 //  * @brief

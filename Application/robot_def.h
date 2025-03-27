@@ -34,6 +34,8 @@
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
 // 云台参数
+#define NAV_K -10000
+#define NAV_OFFSET_ANGLE 135
 #define YAW_CHASSIS_ALIGN_ECD     6846   // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
 #define YAW_ECD_GREATER_THAN_4096 0    // ALIGN_ECD值是否大于4096,是为1,否为0;用于计算云台偏转角度
 #define PITCH_HORIZON_ECD         2100  // 云台处于水平位置时编码器值,若对云台有机械改动需要修改
@@ -97,6 +99,7 @@ typedef enum {
     
     CHASSIS_NAV,
     CHASSIS_GIMBAL_FOLLOW,
+    CHASSIS_RC,
 } chassis_mode_e;
 
 typedef enum {
@@ -240,7 +243,9 @@ typedef struct
     super_cap_mode_e super_cap_mode;
     uint16_t chassis_power_buff;
     uint16_t chassis_power_limit;
-    float chassis_angle;
+    float nav_vx;
+    float nav_vy;
+    float nav_wz;
 } Chassis_Ctrl_Cmd_s;
 
 // cmd发布的机械臂控制数据,由arm订阅

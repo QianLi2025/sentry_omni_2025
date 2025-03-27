@@ -4,6 +4,7 @@
 #include "attribute_typedef.h"
 #include "remote_control.h"
 #include "struct_typedef.h"
+#include "robot_def.h"
 
 #define DEBUG_PACKAGE_NUM 10
 
@@ -286,7 +287,7 @@ typedef struct
     {
         uint8_t robot_id;
         uint8_t robot_level;
-        uint16_t current_up;
+        uint16_t current_hp;
         uint16_t maximum_hp;
         uint16_t shooter_barrel_cooling_value;
         uint16_t shooter_barrel_heat_limit;
@@ -357,6 +358,7 @@ typedef struct RobotCmdData
             float pitch;
             float yaw;
             float leg_lenth;
+            Chassis_Spiral_Mode spiral_mode; //小陀螺控制
         } __packed__ chassis;
         struct
         {
