@@ -61,6 +61,11 @@ static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
 static Subscriber_t *gimbal_feed_sub;          // 云台反馈信息订阅者
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_send;        // 传递给云台yaw的控制信息
 static Gimbal_Upload_Data_s gimbal_fetch_data;   // 从云台yaw获取的反馈信息
+
+static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
+static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
+static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信息,包括控制信息和UI绘制相关
+static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
 #endif
 
 #ifdef CHASSIS_BOARD
@@ -131,14 +136,14 @@ void GimbalCMDInit(void)
 
     CAN_Comm_Init_Config_s comm_conf = {
         .can_config = {
-            .can_handle = &hcan1,
+            .can_handle = &hcan2,
             .tx_id      = 0x312,
             .rx_id      = 0x311,
         },
         .recv_data_len = sizeof(CMD_Chassis_Send_Data_s),
         .send_data_len = sizeof(CMD_Gimbal_Send_Data_s),
     };
-    gimbal_can_comm = CANCommInit(&can_comm_config);
+    gimbal_can_comm = CANCommInit(&comm_conf);
  
     // 初始化遥控器,使用串口3
     rc_data = RemoteControlInit(&huart3); // 初始化遥控器,C板上使用USART3
@@ -225,7 +230,7 @@ void GimbalCMDSend(void)
     tc = DWT_GetTimeline_ms();
     td = tc-tl;
     tl = tc;
-}q
+}
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void GimbalCMDTask(void)

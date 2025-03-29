@@ -3,11 +3,12 @@
 #include "robot_def.h"
 #include "test.h"
 #include "chassis.h"
-
-#include "bsp_init.h"
-#include "New_shoot.h"
-#include "New_gimbal.h"
 #include "gimbal.h"
+#include "bsp_init.h"
+#include "gimball.h"
+// #include "New_shoot.h"
+// #include "New_gimbal.h"
+
 #include "robot_cmd.h"
 // 编译warning,提醒开发者修改机器人参数
 #ifndef ROBOT_DEF_PARAM_WARNING
@@ -41,17 +42,17 @@ void RobotInit(void)
     BSPInit();
     // 应用层初始化
 #if defined(GIMBAL_BOARD)
-     GimbalCMDInit();
-    // PitchInit();
+    GimbalCMDInit();
+    //PitchInit();
+    FrictionInit();
     GimbalInit();
-     FrictionInit();
-   
+    //GimballInit();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDInit();
      //YawInit();
-    LoaderInit();
+    // LoaderInit();
      ChassisInit();
 #endif
     // 测试代码
@@ -72,17 +73,15 @@ void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     GimbalCMDTask();
-    //New_gimbalTask();
     GimbalTask();
-    PitchTask();
-     FrictionTask();
+    FrictionTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDTask();
-     ChassisTask();
+    ChassisTask();
     //YawTask();
-    LoaderTask();    
+    // LoaderTask();    
 #endif
 // TESTTask();
 }

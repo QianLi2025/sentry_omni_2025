@@ -23,13 +23,13 @@ static float last_pitch=0;
 static float pitch_target;      
 static float pitch_current;     
 static float pitch_motor_angle;
-void GimbalInit()
+void GimballInit()
 {
     gimba_IMU_data = INS_Init(); // IMU先初始化,获取姿态数据指针赋给yaw电机的其他数据来源
     // YAW
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
-            .can_handle = &hcan2,
+            .can_handle = &hcan1,
             .tx_id      = 1,
         },
         .controller_param_init_config = {
@@ -119,7 +119,7 @@ void GimbalInit()
 }
 
 /* 机器人云台控制核心任务,后续考虑只保留IMU控制,不再需要电机的反馈 */
-void GimbalTask()
+void GimballTask()
 {
     // 获取云台控制数据
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
