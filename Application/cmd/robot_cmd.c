@@ -30,6 +30,8 @@
 #include "UARTComm.h"
 #include "bsp_dwt.h"
 
+#include "C_comm.h"
+
 // 私有宏,自动将编码器转换成角度值
 #define YAW_ALIGN_ANGLE     (YAW_CHASSIS_ALIGN_ECD * ECD_ANGLE_COEF_DJI) // 对齐时的角度,0-360
 #define PTICH_HORIZON_ANGLE (PITCH_HORIZON_ECD * ECD_ANGLE_COEF_DJI)     // pitch水平时电机的角度,0-360
@@ -43,7 +45,7 @@ static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
 static float yanshi_time=0;
 static float yanshi_time_last=0; 
 static float yanshi_time_erro=0;
- Vision_Recv_s vision_ctrl; // 视觉控制信息
+Vision_Recv_s vision_ctrl; // 视觉控制信息
 static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static Subscriber_t *Vision_ctrl_sub;
@@ -161,11 +163,6 @@ void GimbalCMDGet(void) //获取反馈数据
     gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
     shoot_cmd_send.referee_shoot_speed = robot_fetch_data.bullet_speed;
-
-
-
-
-
 }
 static float tc,tl,td;
 static float hibernate_time,dead_time;
