@@ -7,6 +7,7 @@
 #include "bsp_init.h"
 #include "New_shoot.h"
 #include "New_gimbal.h"
+#include "gimbal.h"
 #include "robot_cmd.h"
 // 编译warning,提醒开发者修改机器人参数
 #ifndef ROBOT_DEF_PARAM_WARNING
@@ -41,14 +42,15 @@ void RobotInit(void)
     // 应用层初始化
 #if defined(GIMBAL_BOARD)
      GimbalCMDInit();
-     PitchInit();
+    // PitchInit();
+    GimbalInit();
      FrictionInit();
    
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDInit();
-     YawInit();
+     //YawInit();
     LoaderInit();
      ChassisInit();
 #endif
@@ -70,6 +72,8 @@ void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     GimbalCMDTask();
+    //New_gimbalTask();
+    GimbalTask();
     PitchTask();
      FrictionTask();
 #endif
@@ -77,7 +81,7 @@ void RobotTask()
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisCMDTask();
      ChassisTask();
-    YawTask();
+    //YawTask();
     LoaderTask();    
 #endif
 // TESTTask();
