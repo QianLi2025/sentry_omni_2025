@@ -407,8 +407,8 @@ typedef struct
     // vision_mode_e vision_mode;           //  视觉状态
     // vision_lock_mode_e vision_lock_mode; // 视觉锁定的目标状态
     // vision_is_shoot_e vision_is_shoot;   // 是否使用视觉is_shooting参数
-    Loader_Ctrl_Cmd_s Shoot_Ctr_Cmd;
-    Yaw_Ctrl_Cmd_s Gimbal_Ctr_Cmd;
+    // Loader_Ctrl_Cmd_s Shoot_Ctr_Cmd;
+    // Yaw_Ctrl_Cmd_s Gimbal_Ctr_Cmd;
     Chassis_Ctrl_Cmd_s Chassis_Ctr_Cmd;
  
 } CMD_Gimbal_Send_Data_s;

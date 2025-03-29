@@ -10,7 +10,7 @@
 /* 对于双发射机构的机器人,将下面的数据封装成结构体即可,生成两份shoot应用实例 */
 static DJIMotor_Instance *friction_l, *friction_r, *loader; // 拨盘电机
 // static servo_instance *lid; 需要增加弹舱盖
-float target_speed;
+float target_speed=39000;
 static Publisher_t *shoot_pub;
 static Shoot_Ctrl_Cmd_s shoot_cmd_recv; // 来自cmd的发射控制信息
 static Subscriber_t *shoot_sub;
@@ -61,7 +61,7 @@ void ShootInit()
     friction_l                            = DJIMotorInit(&friction_config);
 
     friction_config.can_init_config.tx_id                             = 1; // 右摩擦轮,改txid和方向就行
-    friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    friction_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
     friction_r                                                        = DJIMotorInit(&friction_config);
 
     // 拨盘电机
@@ -82,8 +82,8 @@ void ShootInit()
                 .Derivative_LPF_RC = 0.01,
             },
             .speed_PID = {
-                .Kp            = 5,   // 10
-                .Ki            = 100, // 1
+                .Kp            = 10,   // 
+                .Ki            = 200, // 1
                 .Kd            = 0,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 10000,
@@ -91,7 +91,7 @@ void ShootInit()
             },
             .current_PID = {
                 .Kp            = 0.7, // 0.7
-                .Ki            = 0,   // 0.1
+                .Ki            = 0.1,   // 0.1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
                 .IntegralLimit = 10000,
@@ -190,6 +190,7 @@ void ShootTask()
         // 根据收到的弹速设置设定摩擦轮电机参考值,需实测后填入
             switch (shoot_cmd_recv.bullet_speed) {
                 case SMALL_AMU_30:
+                if (shoot_cmd_recv.referee_shoot_speed >= 24)
                 {
                     target_speed -= 100;
                 }
