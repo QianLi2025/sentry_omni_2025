@@ -61,7 +61,7 @@ void YawInit (){
              .other_speed_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.Gyro,
         },
         .controller_setting_init_config = {
-            .angle_feedback_source = OTHEwR_FEED,
+            .angle_feedback_source = OTHER_FEED,
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = SPEED_LOOP,
             .close_loop_type       = ANGLE_LOOP | SPEED_LOOP,
@@ -98,16 +98,11 @@ void YawTask(){
         // 使用陀螺仪的反馈,底盘根据yaw电机的offset跟随云台或视觉模式采用
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             DJIMotorEnable(yaw_motor);
-            // yaw_motor->motor_controller.speed_PID.Kp =98;
-            // yaw_motor->motor_controller.speed_PID.Ki =95;
-    
-            // yaw_motor->motor_controller.angle_PID.Kp =60;
-            // yaw_motor->motor_controller.angle_PID.Kd =0.5;
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
 
-            //  if(gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle+gimbal_cmd_recv.yaw>90){
-            //     gimbal_cmd_recv.yaw=-gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle;
-            // }
+              if(gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle+gimbal_cmd_recv.yaw>90){
+                 gimbal_cmd_recv.yaw=-gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle;
+             }
             DJIMotorSetRef(yaw_motor, -gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             break;
         // 巡航模式
