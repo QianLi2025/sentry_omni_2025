@@ -40,6 +40,7 @@
 #ifdef GIMBAL_BOARD
 #include "UARTComm.h"
 static UARTComm_Instance *gimbal_uart_comm; // 双板通信
+static CAN_Comm_Instance *gimbal_can_comm;
 static CMD_Gimbal_Send_Data_s gimbal_comm_send;
 static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
 static float yanshi_time=0;
@@ -50,30 +51,6 @@ static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static Subscriber_t *Vision_ctrl_sub;
 static Publisher_t *robot_fetch_pub;
-#endif
-
-#ifdef CHASSIS_BOARD
-#include "UARTComm.h"
-#include "referee_UI.h"
-#include "Navi_process.h"
-static UARTComm_Instance *chassis_uart_comm; // 双板通信
-static CMD_Chassis_Send_Data_s chassis_comm_send;
-static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
-
-static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
-static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
-static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
-#endif
-
-#ifdef ONE_BOARD
-static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
-static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
-#endif
-
-static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
-static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
-static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信息,包括控制信息和UI绘制相关
-static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
 
 static Publisher_t *shoot_cmd_pub;           // 发射摩擦轮控制消息发布者
 static Subscriber_t *shoot_feed_sub;         // 发射摩擦轮反馈信息订阅者
@@ -84,6 +61,37 @@ static Publisher_t *gimbal_cmd_pub;            // 云台控制消息发布者
 static Subscriber_t *gimbal_feed_sub;          // 云台反馈信息订阅者
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_send;        // 传递给云台yaw的控制信息
 static Gimbal_Upload_Data_s gimbal_fetch_data;   // 从云台yaw获取的反馈信息
+#endif
+
+#ifdef CHASSIS_BOARD
+#include "UARTComm.h"
+#include "referee_UI.h"
+#include "Navi_process.h"
+static UARTComm_Instance *chassis_uart_comm; // 双板通信
+static CAN_Comm_Instance *chassis_can_comm;
+static CMD_Chassis_Send_Data_s chassis_comm_send;
+
+static referee_info_t *referee_data;                         // 用于获取裁判系统的数据
+static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
+static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
+static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
+
+static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
+static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
+static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信息,包括控制信息和UI绘制相关
+static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
+#endif
+
+#ifdef ONE_BOARD
+static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
+static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
+#endif
+
+
+
+
+
+
 
 static Robot_Upload_Data_s robot_fetch_data; //从裁判系统获取的机器人状态信息
 
@@ -120,21 +128,32 @@ void GimbalCMDInit(void)
     robot_fetch_pub = PubRegister("robot_fetch", sizeof(Robot_Upload_Data_s));
 
     Vision_ctrl_sub = SubRegister("vision_ctrl", sizeof(Vision_Recv_s));
+
+    CAN_Comm_Init_Config_s comm_conf = {
+        .can_config = {
+            .can_handle = &hcan1,
+            .tx_id      = 0x312,
+            .rx_id      = 0x311,
+        },
+        .recv_data_len = sizeof(CMD_Chassis_Send_Data_s),
+        .send_data_len = sizeof(CMD_Gimbal_Send_Data_s),
+    };
+    gimbal_can_comm = CANCommInit(&can_comm_config);
  
     // 初始化遥控器,使用串口3
     rc_data = RemoteControlInit(&huart3); // 初始化遥控器,C板上使用USART3
 
 
     gimba_IMU_data = INS_Init();
-    // 配置UART通信初始化参数
-    UARTComm_Init_Config_s comm_conf = {
-        .uart_handle = &huart1,
-        .recv_data_len = sizeof(CMD_Chassis_Send_Data_s),
-        .send_data_len = sizeof(CMD_Gimbal_Send_Data_s),
-    };
+    // // 配置UART通信初始化参数
+    // UARTComm_Init_Config_s comm_conf = {
+    //     .uart_handle = &huart1,
+    //     .recv_data_len = sizeof(CMD_Chassis_Send_Data_s),
+    //     .send_data_len = sizeof(CMD_Gimbal_Send_Data_s),
+    // };
 
-    // 初始化UART通信
-    gimbal_uart_comm = UARTCommInit(&comm_conf);
+    // // 初始化UART通信
+    // gimbal_uart_comm = UARTCommInit(&comm_conf);
 
     // 初始化射击命令为正常模式、600ms死亡时间、小弹速
     shoot_cmd_send.attack_mode  = NORMAL;
@@ -157,12 +176,15 @@ void GimbalCMDGet(void) //获取反馈数据
     // yanshi_time = DWT_GetTimeline_ms();
     // yanshi_time_erro =yanshi_time-yanshi_time_last;
     // yanshi_time_last = yanshi_time;
-    gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
+    // gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
+    gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)CANCommGet(gimbal_can_comm);
     // chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
     // shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
-    gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
+    // gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
+
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
     shoot_cmd_send.referee_shoot_speed = robot_fetch_data.bullet_speed;
+    shoot_cmd_send.rest_heat = robot_fetch_data.shoot_limit - robot_fetch_data.shoot_heat;
 }
 static float tc,tl,td;
 static float hibernate_time,dead_time;
@@ -172,15 +194,15 @@ void GimbalCMDSend(void)
     PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
     PubPushMessage(robot_fetch_pub, (void*)&robot_fetch_data);
 
-    gimbal_comm_send.Shoot_Ctr_Cmd.is_tracking = shoot_cmd_send.is_tracking;
-    gimbal_comm_send.Shoot_Ctr_Cmd.shoot_rate = shoot_cmd_send.shoot_rate;
-    gimbal_comm_send.Shoot_Ctr_Cmd.load_mode = shoot_cmd_send.load_mode;
+    // gimbal_comm_send.Shoot_Ctr_Cmd.is_tracking = shoot_cmd_send.is_tracking;
+    // gimbal_comm_send.Shoot_Ctr_Cmd.shoot_rate = shoot_cmd_send.shoot_rate;
+    // gimbal_comm_send.Shoot_Ctr_Cmd.load_mode = shoot_cmd_send.load_mode;
 
-    gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle = gimba_IMU_data->YawTotalAngle;
-    gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.Gyro = gimba_IMU_data->Gyro[2];
-    gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_mode = gimbal_cmd_send.gimbal_mode;
-    gimbal_comm_send.Gimbal_Ctr_Cmd.yaw = gimbal_cmd_send.yaw;
-    gimbal_comm_send.Gimbal_Ctr_Cmd.chassis_rotate_wz = chassis_cmd_send.wz;
+    // gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle = gimba_IMU_data->YawTotalAngle;
+    // gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.Gyro = gimba_IMU_data->Gyro[2];
+    // gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_mode = gimbal_cmd_send.gimbal_mode;
+    // gimbal_comm_send.Gimbal_Ctr_Cmd.yaw = gimbal_cmd_send.yaw;
+    // gimbal_comm_send.Gimbal_Ctr_Cmd.chassis_rotate_wz = chassis_cmd_send.wz;
 
     // gimbal_comm_send.Gimbal_Ctr_Cmd = gimbal_cmd_send;
     gimbal_comm_send.Chassis_Ctr_Cmd.vx = chassis_cmd_send.vx;
@@ -190,20 +212,20 @@ void GimbalCMDSend(void)
     gimbal_comm_send.Chassis_Ctr_Cmd.chassis_mode = chassis_cmd_send.chassis_mode;
     gimbal_comm_send.Chassis_Ctr_Cmd.offset_angle = chassis_cmd_send.offset_angle;
 
-
     
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
     return;
     else
     {
-    UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
+    // UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
+    CANCommSend(gimbal_can_comm, (uint8_t *)&gimbal_comm_send);
     hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
     dead_time      = 1; // 2ms发送一次   
     }
     tc = DWT_GetTimeline_ms();
     td = tc-tl;
     tl = tc;
-}
+}q
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void GimbalCMDTask(void)
@@ -390,36 +412,41 @@ void ChassisCMDInit(void)
 
     chassis_cmd_pub  = PubRegister("chassis_cmd", sizeof(Chassis_Ctrl_Cmd_s));
     chassis_feed_sub = SubRegister("chassis_feed", sizeof(Chassis_Upload_Data_s));
-    // 注册云台俯仰角命令的发布者
-    gimbal_cmd_pub  = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
-    // 注册云台俯仰角反馈的订阅者
-    gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
-    // 注册射击命令的发布者
-    shoot_cmd_pub  = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
-    // 注册射击反馈的订阅者
-    shoot_feed_sub = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
+    // // 注册云台俯仰角命令的发布者
+    // gimbal_cmd_pub  = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
+    // // 注册云台俯仰角反馈的订阅者
+    // gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
+    // // 注册射击命令的发布者
+    // shoot_cmd_pub  = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
+    // // 注册射击反馈的订阅者
+    // shoot_feed_sub = SubRegister("shoot_feed", sizeof(Shoot_Upload_Data_s));
 
     referee_data = UITaskInit(&huart6, &ui_data); // 裁判系统初始化,会同时初始化UI    
 
     navigation_ctrl = NavigationInit(&huart1);
     // 配置UART通信初始化参数
-    UARTComm_Init_Config_s comm_conf = {
-        .uart_handle = &huart1,
+    // UARTComm_Init_Config_s comm_conf = {
+    //     .uart_handle = &huart1,
+    //     .recv_data_len = sizeof(CMD_Gimbal_Send_Data_s),
+    //     .send_data_len = sizeof(CMD_Chassis_Send_Data_s),
+    // };
+
+    // // 初始化UART通信
+    // chassis_uart_comm = UARTCommInit(&comm_conf);
+
+    CAN_Comm_Init_Config_s comm_conf = {
+        .can_config = {
+            .can_handle = &hcan1,
+            .tx_id      = 0x311,
+            .rx_id      = 0x312,
+        },
         .recv_data_len = sizeof(CMD_Gimbal_Send_Data_s),
         .send_data_len = sizeof(CMD_Chassis_Send_Data_s),
     };
+    chassis_can_comm = CANCommInit(&comm_conf);
 
-    // 初始化UART通信
-    chassis_uart_comm = UARTCommInit(&comm_conf);
 
-    // 初始化射击命令为正常模式、600ms死亡时间、小弹速
-    shoot_cmd_send.attack_mode  = NORMAL;
-    shoot_cmd_send.dead_time    = 600;
-    shoot_cmd_send.bullet_speed = SMALL_AMU_30;
 
-    // 初始化云台控制命令为俯仰角和 yaw 角为0
-    gimbal_cmd_send.pitch       = 0;
-    gimbal_cmd_send.yaw         = 0;
 
     // 设置机器人的初始状态为准备就绪
     robot_state                 = ROBOT_READY; // 启动时机器人进入工作模式,后续加入所有应用初始化完成之后再进入  
@@ -427,24 +454,24 @@ void ChassisCMDInit(void)
 
 void ChassisCMDGet(void)
 {
-    chassis_comm_recv = (CMD_Gimbal_Send_Data_s *)UARTCommGet(chassis_uart_comm);
-    //  chassis_cmd_send = chassis_comm_recv->Chassis_Ctr_Cmd;
+    // chassis_comm_recv = (CMD_Gimbal_Send_Data_s *)UARTCommGet(chassis_uart_comm);
+    chassis_comm_recv = (CMD_Gimbal_Send_Data_s *)CANCommGet(chassis_can_comm);
+    chassis_cmd_send = chassis_comm_recv->Chassis_Ctr_Cmd;
     // gimbal_cmd_send = chassis_comm_recv->Gimbal_Ctr_Cmd;
     // shoot_cmd_send = chassis_comm_recv->Shoot_Ctr_Cmd;
     // gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//cc;
-     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
-     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
+    chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
+    chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
 
-    shoot_cmd_send.shoot_rate = chassis_comm_recv->Shoot_Ctr_Cmd.shoot_rate;
-    shoot_cmd_send.load_mode = chassis_comm_recv->Shoot_Ctr_Cmd.load_mode;
-    shoot_cmd_send.is_tracking = chassis_comm_recv->Shoot_Ctr_Cmd.is_tracking;
-    shoot_cmd_send.rest_heat = referee_data->GameRobotState.shooter_barrel_heat_limit - referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+    // shoot_cmd_send.shoot_rate = chassis_comm_recv->Shoot_Ctr_Cmd.shoot_rate;
+    // shoot_cmd_send.load_mode = chassis_comm_recv->Shoot_Ctr_Cmd.load_mode;
+    // shoot_cmd_send.is_tracking = chassis_comm_recv->Shoot_Ctr_Cmd.is_tracking;
 
-    gimbal_cmd_send.yaw = chassis_comm_recv->Gimbal_Ctr_Cmd.yaw;
-    gimbal_cmd_send.gimbal_imu_data_yaw.YawTotalAngle = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
-    gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.Gyro;
-    gimbal_cmd_send.gimbal_mode = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_mode;
-    gimbal_cmd_send.chassis_rotate_wz = chassis_comm_recv->Gimbal_Ctr_Cmd.chassis_rotate_wz;
+    // gimbal_cmd_send.yaw = chassis_comm_recv->Gimbal_Ctr_Cmd.yaw;
+    // gimbal_cmd_send.gimbal_imu_data_yaw.YawTotalAngle = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
+    // gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.Gyro;
+    // gimbal_cmd_send.gimbal_mode = chassis_comm_recv->Gimbal_Ctr_Cmd.gimbal_mode;
+    // gimbal_cmd_send.chassis_rotate_wz = chassis_comm_recv->Gimbal_Ctr_Cmd.chassis_rotate_wz;
 
     chassis_cmd_send.vx = chassis_comm_recv->Chassis_Ctr_Cmd.vx;
     chassis_cmd_send.vy = chassis_comm_recv->Chassis_Ctr_Cmd.vy;
@@ -454,15 +481,12 @@ void ChassisCMDGet(void)
     chassis_cmd_send.offset_angle = chassis_comm_recv->Chassis_Ctr_Cmd.offset_angle;
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
-
-
     //TODO：发射，云台，Robot 状态反馈
 }
 
 void RobotStateGet(void)
 {
-
-
+ /*
     robot_fetch_data.shoot_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
     robot_fetch_data.shoot_limit  = referee_data->GameRobotState.shooter_barrel_heat_limit;
     robot_fetch_data.bullet_speed = referee_data->ShootData.bullet_speed;
@@ -471,16 +495,22 @@ void RobotStateGet(void)
 
     // robot_fetch_data.self_color = referee_data;
     // robot_fetch_data.shoot_heat = referee_data->ShootData;
+*/
+    robot_fetch_data.shoot_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+    robot_fetch_data.shoot_limit  = referee_data->GameRobotState.shooter_barrel_heat_limit;
+    robot_fetch_data.bullet_speed = referee_data->ShootData.bullet_speed;
+    // 我方颜色id小于10是红色,大于10是蓝色,注意这里发送的是自己的颜色, 1:blue , 2:red
+    robot_fetch_data.self_color = referee_data->GameRobotState.robot_id > 10 ? COLOR_BLUE : COLOR_RED;
 
 }
 
 void ChassisCMDSend(void)
-{
-    PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
-    PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
+{/*
+    // PubPushMessage(gimbal_cmd_pub, (void*)&gimbal_cmd_send);
+    // PubPushMessage(shoot_cmd_pub, (void*)&shoot_cmd_send);
     PubPushMessage(chassis_cmd_pub, (void*)&chassis_cmd_send);
 
-    SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
+     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data);
 
 
     //chassis_comm_send.Chassis_fetch_data = &chassis_fetch_data;
@@ -489,8 +519,15 @@ void ChassisCMDSend(void)
     //TODO:robot_fetch_data 待赋值
 
     //chassis_comm_send.Shoot_fetch_data = &shoot_fetch_data;
-    UARTCommSend(chassis_uart_comm,(uint8_t*)&chassis_comm_send);
+    // UARTCommSend(chassis_uart_comm,(uint8_t*)&chassis_comm_send);
+    */
+    PubPushMessage(chassis_cmd_pub, (void*)&chassis_cmd_send); 
+
+    chassis_comm_send.Robot_fetch_data = robot_fetch_data;
+
+    CANCommSend(chassis_can_comm,(uint8_t*)&chassis_comm_send);
 }
+
 void ChassisCMDTask(void)
 {
     ChassisCMDGet();
@@ -531,7 +568,6 @@ void ChassisCMDTask(void)
             chassis_cmd_send.wz = 0;
         }
     }
-
 
     ChassisCMDSend();
     NavigationSend(referee_data);
@@ -712,7 +748,8 @@ void ChassisCMDTask(void)
 // }
 
 
-
+#ifdef GIMBAL_BOARD
+ 
 /**
  * @brief  紧急停止,包括遥控器右侧上侧拨杆打满/重要模块离线/双板通信失效等
  *         停止的阈值'300'待修改成合适的值,或改为开关控制.
@@ -733,3 +770,4 @@ static void EmergencyHandler(void)
     shoot_cmd_send.lid_mode         = LID_CLOSE;
 }
 
+#endif // DEBUG

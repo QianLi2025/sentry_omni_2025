@@ -18,8 +18,8 @@
 
 /* 开发板类型定义,烧录时注意不要弄错对应功能;修改定义后需要重新编译,只能存在一个定义! */
 // #define ONE_BOARD // ! 单板控制整车，beta选项，建议别选上
-#define CHASSIS_BOARD // 底盘板
-// #define GIMBAL_BOARD // 云台板
+// #define CHASSIS_BOARD // 底盘板
+#define GIMBAL_BOARD // 云台板
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
 // 底盘参数
@@ -325,7 +325,10 @@ typedef struct
 #if defined(CHASSIS_BOARD) || defined(GIMBAL_BOARD) // 非单板的时候底盘还将imu数据回传(若有必要)
     // attitude_t chassis_imu_data;
 #endif
-
+    Self_Color_e self_color;
+    uint16_t shoot_heat;  // 枪口热量
+    uint16_t shoot_limit; // 枪口热量上限
+    float bullet_speed;   // 裁判系统弹速
 
 
 } Chassis_Upload_Data_s;
@@ -406,7 +409,7 @@ typedef struct
     // vision_is_shoot_e vision_is_shoot;   // 是否使用视觉is_shooting参数
     Loader_Ctrl_Cmd_s Shoot_Ctr_Cmd;
     Yaw_Ctrl_Cmd_s Gimbal_Ctr_Cmd;
-    Chassis_Ctrl_CmdSend_s Chassis_Ctr_Cmd;
+    Chassis_Ctrl_Cmd_s Chassis_Ctr_Cmd;
  
 } CMD_Gimbal_Send_Data_s;
 
@@ -421,9 +424,9 @@ typedef struct
     // uint8_t is_video_link; // 是否有图传链路
 
 
-    Shoot_Upload_Data_s Shoot_fetch_data;
-    Gimbal_Upload_Data_s Gimbal_fetch_data;
-    Chassis_Upload_Data_s Chassis_fetch_data;
+    // Shoot_Upload_Data_s Shoot_fetch_data;
+    // Gimbal_Upload_Data_s Gimbal_fetch_data;
+    // Chassis_Upload_Data_s Chassis_fetch_data;
     Robot_Upload_Data_s Robot_fetch_data;
 
 
