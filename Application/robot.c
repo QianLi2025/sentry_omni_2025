@@ -6,6 +6,7 @@
 #include "gimbal.h"
 #include "bsp_init.h"
 #include "gimball.h"
+#include "shoot.h"
 // #include "New_shoot.h"
 // #include "New_gimbal.h"
 
@@ -44,8 +45,9 @@ void RobotInit(void)
 #if defined(GIMBAL_BOARD)
     GimbalCMDInit();
     //PitchInit();
-    FrictionInit();
+    // FrictionInit();
     GimbalInit();
+    ShootInit();
     //GimballInit();
 #endif
 
@@ -74,7 +76,8 @@ void RobotTask()
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     GimbalCMDTask();
     GimbalTask();
-    FrictionTask();
+    // FrictionTask();
+    ShootTask();
 #endif
 
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)

@@ -92,12 +92,6 @@ static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
 static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
 #endif
 
-
-
-
-
-
-
 static Robot_Upload_Data_s robot_fetch_data; //从裁判系统获取的机器人状态信息
 
 static float chassis_speed_buff;
@@ -323,7 +317,7 @@ static void RemoteControlSet(void)
         chassis_cmd_send.chassis_mode = CHASSIS_GIMBAL_FOLLOW;
     }
 
-
+    
     //云台参数 //上巡航，中下遥控
     // 自瞄，左侧开关为中上是自瞄
     if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl.is_tracking) // 左侧开关状态为[中] / [上],视觉模式
@@ -335,7 +329,7 @@ static void RemoteControlSet(void)
     else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl.is_tracking){
     
         gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
-        gimbal_cmd_send.yaw = gimbal_comm_send.Gimbal_Ctr_Cmd.gimbal_imu_data_yaw.YawTotalAngle;
+        gimbal_cmd_send.yaw = gimba_IMU_data->YawTotalAngle;
     }
     else {
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE ;
