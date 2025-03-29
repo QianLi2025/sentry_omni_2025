@@ -5,7 +5,7 @@
 #include "chassis.h"
 #include "gimbal.h"
 #include "bsp_init.h"
-#include "gimball.h"
+
 // #include "New_shoot.h"
 // #include "New_gimbal.h"
 
