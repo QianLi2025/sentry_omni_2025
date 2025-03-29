@@ -43,7 +43,7 @@ static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
 static float yanshi_time=0;
 static float yanshi_time_last=0; 
 static float yanshi_time_erro=0;
-static Vision_Recv_s vision_ctrl; // 视觉控制信息
+ Vision_Recv_s vision_ctrl; // 视觉控制信息
 static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static Subscriber_t *Vision_ctrl_sub;
@@ -146,19 +146,24 @@ void GimbalCMDInit(void)
     // 设置机器人的初始状态为准备就绪
     robot_state                 = ROBOT_READY; // 启动时机器人进入工作模式,后续加入所有应用初始化完成之后再进入
 }
-
+float delt_t;
 void GimbalCMDGet(void) //获取反馈数据
 {
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
-    SubGetMessage(Vision_ctrl_sub, &vision_ctrl);
-    yanshi_time = DWT_GetTimeline_ms();
-    yanshi_time_erro =yanshi_time-yanshi_time_last;
-    yanshi_time_last = yanshi_time;
+    // SubGetMessage(Vision_ctrl_sub, &vision_ctrl);
+    delt_t = DWT_GetTimeline_ms()-vision_ctrl.revc_time;
+    // yanshi_time = DWT_GetTimeline_ms();
+    // yanshi_time_erro =yanshi_time-yanshi_time_last;
+    // yanshi_time_last = yanshi_time;
     gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
     // chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
     // shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
     gimbal_fetch_data.yaw_motor_single_round_angle = gimbal_comm_recv->Gimbal_fetch_data.yaw_motor_single_round_angle;
     robot_fetch_data = gimbal_comm_recv->Robot_fetch_data;
+    shoot_cmd_send.referee_shoot_speed = robot_fetch_data.bullet_speed;
+
+
+
 
 
 }
@@ -277,11 +282,14 @@ static void RemoteControlSet(void)
     chassis_cmd_send.vy = -80.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
     if(switch_is_down(rc_data[TEMP].rc.switch_right)){
         chassis_cmd_send.wz = -50.0f * (float)rc_data[TEMP].rc.dial;
-    }else{
+    }else if(switch_is_up(rc_data[TEMP].rc.switch_right)){
+        chassis_cmd_send.wz = -50*400;
+    }
+    else{
         chassis_cmd_send.wz = 0;
     }
     // chassis_cmd_send.wz = (float)rc_data[TEMP].rc.dial*360/660+chassis_cmd_send.wz;
-    chassis_cmd_send.chassis_angle = chassis_cmd_send.chassis_angle;         
+    // chassis_cmd_send.chassis_angle = chassis_cmd_send.chassis_angle;         
     if(switch_is_up(rc_data[TEMP].rc.switch_right) || switch_is_down(rc_data[TEMP].rc.switch_right))
     {
         chassis_cmd_send.chassis_mode = CHASSIS_NAV;
@@ -334,8 +342,7 @@ static void RemoteControlSet(void)
     else if (gimbal_cmd_send.pitch < PITCH_MIN_ANGLE)
         gimbal_cmd_send.pitch = PITCH_MIN_ANGLE;
 
-      
-
+    
     // // 发射参数
  
 
@@ -344,8 +351,9 @@ static void RemoteControlSet(void)
         shoot_cmd_send.friction_mode = FRICTION_ON;
     else{
         shoot_cmd_send.friction_mode = FRICTION_OFF;
-}
+    }
     // 拨弹控制,遥控器固定为一种拨弹模式,
+   
    
     if( shoot_cmd_send.friction_mode == FRICTION_ON){
 
@@ -501,15 +509,17 @@ void ChassisCMDTask(void)
         // chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
         // chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
         // chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
-       if(navigation_ctrl->vx != 0 && navigation_ctrl->vy != 0)  //导航控制
+       if(navigation_ctrl->vx != 0 && navigation_ctrl->vy != 0 && referee_data->GameState.game_progress == 4)  //导航控制
         {
             //TODO:game progress限制待添加
-            chassis_cmd_send.vy = navigation_ctrl->vx * NAV_K;
-            chassis_cmd_send.vx = navigation_ctrl->vy * NAV_K;
+            chassis_cmd_send.vx = navigation_ctrl->vx * NAV_K;
+            chassis_cmd_send.vy = navigation_ctrl->vy * NAV_K;
+            chassis_cmd_send.wz = 0;
             // chassis_cmd_send.wz = navigation_ctrl->wz * NAV_K;
             chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
         }
         else{
+            // chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
             chassis_cmd_send.vx = chassis_cmd_send.vx;
             chassis_cmd_send.vy = chassis_cmd_send.vy;
             chassis_cmd_send.wz = chassis_cmd_send.wz;
@@ -525,19 +535,6 @@ void ChassisCMDTask(void)
         }
     }
 
-    //发射火控
-    if(shoot_cmd_send.rest_heat<80)
-    {
-        shoot_cmd_send.shoot_rate = referee_data->GameRobotState.shooter_barrel_cooling_value / 10;
-    }
-     if(shoot_cmd_send.rest_heat<40)
-    {
-        shoot_cmd_send.shoot_rate = (referee_data->GameRobotState.shooter_barrel_cooling_value / 10)-1;
-    }
-     if (shoot_cmd_send.rest_heat<0)
-    {
-        shoot_cmd_send.shoot_rate = 1;
-    }
 
     ChassisCMDSend();
     NavigationSend(referee_data);

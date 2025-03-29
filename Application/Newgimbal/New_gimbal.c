@@ -36,26 +36,25 @@ void YawInit (){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 40,
-                .Ki                = 0.1,
-                .Kd                = 0.5
-                ,
-                .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
-                .IntegralLimit     = 10,
+                .Kp                = 70,
+                .Ki                = 0,
+                .Kd                = 2,
+                .Improve           =  PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter ,
+                .IntegralLimit     = 5000,
                 .CoefB             = 0.3,
                 .CoefA             = 0.2,
-                .MaxOut            = 8000,//4000
-                .Derivative_LPF_RC = 0.25,
+                .MaxOut            = 10000,//4000
+                .Derivative_LPF_RC = 0,
             },
             .speed_PID = {
-                .Kp            = 40,
-                .Ki            = 0.01,
+                .Kp            = 98,
+                .Ki            = 160,
                 .Kd            = 0,
                 .CoefB         = 0.3,
                 .CoefA         = 0.2,
-                .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate,
-                .IntegralLimit = 5000,
-                .MaxOut        = 30000,//10000
+                .Improve       =  PID_Integral_Limit | PID_Derivative_On_Measurement ,
+                .IntegralLimit = 25000,
+                .MaxOut        = 25000,//10000
             },
              .other_angle_feedback_ptr = &gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle,
             // // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
@@ -99,8 +98,8 @@ void YawTask(){
         // 使用陀螺仪的反馈,底盘根据yaw电机的offset跟随云台或视觉模式采用
         case GIMBAL_GYRO_MODE: // 后续只保留此模式
             DJIMotorEnable(yaw_motor);
-            yaw_motor->motor_controller.speed_PID.Kp =45;
-            yaw_motor->motor_controller.speed_PID.Ki =0.01;
+            // yaw_motor->motor_controller.speed_PID.Kp =98;
+            // yaw_motor->motor_controller.speed_PID.Ki =95;
     
             // yaw_motor->motor_controller.angle_PID.Kp =60;
             // yaw_motor->motor_controller.angle_PID.Kd =0.5;
@@ -116,8 +115,8 @@ void YawTask(){
         DJIMotorEnable(yaw_motor);
 
         DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
-            yaw_motor->motor_controller.speed_PID.Kp =60;
-            yaw_motor->motor_controller.speed_PID.Ki =2;           
+            // yaw_motor->motor_controller.speed_PID.Kp =60;
+            // yaw_motor->motor_controller.speed_PID.Ki =2;           
             DJIMotorSetRef(yaw_motor, 200);
         default:
             break;
