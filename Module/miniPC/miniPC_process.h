@@ -96,6 +96,7 @@ typedef struct
     float pitch;
     float distance;
     uint16_t checksum;
+    float revc_time;
 } Vision_Recv_s;
 
 /* stm32 -> minipc (发送结构体) */

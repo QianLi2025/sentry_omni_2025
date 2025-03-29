@@ -1,6 +1,5 @@
 #include "New_shoot.h"
 #include "robot_def.h"
-
 #include "tim.h"
 #include "dji_motor.h"
 #include "message_center.h"
@@ -20,6 +19,7 @@ static Subscriber_t *loader_sub;
 // dwt定时,计算冷却用
 static float hibernate_time = 0, dead_time = 0;
 
+static float target_speed = 39000;
 // 拨盘设定角度
 static float loader_set_angle = 0;
 
@@ -32,20 +32,19 @@ void FrictionInit(){
         },
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 10, // 20
-                .Ki            = 0,  // 1
+                .Kp            = 6, // 20
+                .Ki            = 0.01,  // 1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
-                .IntegralLimit = 10000,
-                .MaxOut        = 8000,
+                .IntegralLimit = 15000,
+                .MaxOut        = 30000,
             },
             .current_PID = {
-                .Kp            = 0.6, // 0.7
-
+                .Kp            = 0.4, // 0.7
                 .Ki            = 0, // 0.1
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit,
-                .IntegralLimit = 10000,
+                .IntegralLimit = 15000,
                 .MaxOut        = 15000,
             },
         },
@@ -85,8 +84,24 @@ void FrictionTask(){
         // 根据收到的弹速设置设定摩擦轮电机参考值,需实测后填入
         switch (shoot_cmd_recv.bullet_speed) {
             case SMALL_AMU_30:
-                DJIMotorSetRef(friction_l, 44000);
-                DJIMotorSetRef(friction_r, 44000);      
+                // if(shoot_cmd_recv.referee_shoot_speed <=19 && shoot_cmd_recv.referee_shoot_speed!=0)
+                // {
+                //     target_speed += 10;
+                // }
+                 if (shoot_cmd_recv.referee_shoot_speed >= 24)
+                {
+                    target_speed -= 100;
+                }
+ 
+                if(target_speed > 43000){
+                    target_speed = 43000;
+                }
+                else if (target_speed < 37000){
+                 target_speed = 37000;   
+                }
+            
+                DJIMotorSetRef(friction_l, target_speed);
+                DJIMotorSetRef(friction_r, target_speed);      
                 break;
             default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
                 DJIMotorSetRef(friction_l, 20000);
@@ -107,7 +122,7 @@ void LoaderInit(){
         },
         .controller_param_init_config = {
             .angle_PID = {
-                // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
+                 // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
                 .Kp                = 50,
                 .Ki                = 1,
                 .Kd                = 0,
@@ -117,8 +132,8 @@ void LoaderInit(){
                 .Derivative_LPF_RC = 0.01,
             },
             .speed_PID = {
-                .Kp            = 8,   // 10
-                .Ki            = 150, // 1
+                .Kp            = 200,   // 10
+                .Ki            = 50, // 1
                 .Kd            = 0,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 10000,
@@ -157,7 +172,7 @@ void LoaderTask(){
     // 单发模式主要提供给能量机关激活使用(以及英雄的射击大部分处于单发)
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
         return;
-    if(loader->measure.real_current>8000){
+    if(loader->measure.real_current>13000){
         shoot_cmd_recv.load_mode = LOAD_REVERSE;
         hibernate_time = DWT_GetTimeline_ms();
         dead_time = 200;    
@@ -189,6 +204,7 @@ void LoaderTask(){
         case LOAD_FAST:
         case LOAD_MEDIUM:
         case LOAD_SLOW:
+
             DJIMotorOuterLoop(loader, SPEED_LOOP);
             DJIMotorSetRef(loader, 1.0f * shoot_cmd_recv.shoot_rate * 360.0f * REDUCTION_RATIO_LOADER*REDUCTION_RATIO_BOPAN / 9.0f);
             // x颗/秒换算成速度: 已知一圈的载弹量,由此计算出1s需要转的角度,注意换算角速度(DJIMotor的速度单位是angle per second)

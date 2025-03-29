@@ -681,8 +681,8 @@ static void UsbSendGameStatusData(void)
 {
     SEND_DATA_GAME_STATUS.time_stamp = HAL_GetTick();
 
-    SEND_DATA_GAME_STATUS.data.game_progress = 1;
-    SEND_DATA_GAME_STATUS.data.stage_remain_time = 100;
+    // SEND_DATA_GAME_STATUS.data.game_progress = 1;
+    // SEND_DATA_GAME_STATUS.data.stage_remain_time = 100;
 
     append_CRC16_check_sum((uint8_t *)&SEND_DATA_GAME_STATUS, sizeof(SendDataGameStatus_s));
     USB_Transmit((uint8_t *)&SEND_DATA_GAME_STATUS, sizeof(SendDataGameStatus_s));

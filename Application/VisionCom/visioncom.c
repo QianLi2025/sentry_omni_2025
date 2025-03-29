@@ -11,6 +11,8 @@ static Robot_Upload_Data_s robot_fetch; //从裁判系统获取的机器人状�
 
 static Subscriber_t *robot_feed_sub; // 底盘反馈信息订阅者s
 static Publisher_t *vision_ctrl_pub;
+
+extern Vision_Recv_s vision_ctrl;
 void VISIONCOM_Init(void){
     ins = INS_Init();
 
@@ -37,5 +39,6 @@ void VISIONCOM_Task(void){
     VisionSetAltitude(yaw, pitch, roll, bullet_speed, yaw_speed);
     VisionSend();
     PubPushMessage(vision_ctrl_pub, vision_ct);
+    vision_ctrl = *vision_ct;
 
 }

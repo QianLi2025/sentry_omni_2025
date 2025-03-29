@@ -97,10 +97,10 @@ void ChassisInit()
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
     PID_Init_Config_s chassis_follow_pid_conf = {
-        .Kp                = 300,
+        .Kp                = 350,
         .Ki                = 2,
         .Kd                = 1.3,
-        .MaxOut            = 10000,
+        .MaxOut            = 15000,
         .DeadBand          = 0.1,
         .Improve           = PID_DerivativeFilter | PID_Derivative_On_Measurement,
         .Derivative_LPF_RC = 0.1,
@@ -286,7 +286,7 @@ switch (chassis_cmd_recv.chassis_mode)
 
     case CHASSIS_GIMBAL_FOLLOW :
         offset_angle = chassis_cmd_recv.offset_angle;
-        if (offset_angle<5 && offset_angle>-5)
+        if (offset_angle<1 && offset_angle>-1)
         {
             offset_angle = 0;
         }

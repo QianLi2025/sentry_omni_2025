@@ -4,6 +4,7 @@
 #include "crc_ref.h"
 #include "daemon.h"
 #include <math.h>
+#include "bsp_dwt.h"
 
 static Vision_Instance *vision_instance; // 用于和视觉通信的串口实例
 
@@ -286,6 +287,7 @@ static void DecodeVision(uint16_t var)
         if (vision_instance->recv_data->checksum == Get_CRC16_Check_Sum(vis_recv_buff, VISION_RECV_SIZE - 2, CRC_INIT)) {
             DaemonReload(vision_daemon_instance);
             RecvProcess(vision_instance->recv_data, vis_recv_buff);
+            vision_instance->recv_data->revc_time = DWT_GetTimeline_ms();
         } else {
             memset(vision_instance->recv_data, 0, sizeof(Vision_Recv_s));
         }
