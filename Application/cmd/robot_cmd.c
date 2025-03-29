@@ -301,7 +301,7 @@ static void RemoteControlSet(void)
     if(switch_is_down(rc_data[TEMP].rc.switch_right)){
         chassis_cmd_send.wz = -50.0f * (float)rc_data[TEMP].rc.dial;
     }else if(switch_is_up(rc_data[TEMP].rc.switch_right)){
-        chassis_cmd_send.wz = -50*400;
+        chassis_cmd_send.wz = -30*400;
     }
     else{
         chassis_cmd_send.wz = 0;
@@ -329,7 +329,7 @@ static void RemoteControlSet(void)
     else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl.is_tracking){
     
         gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
-        gimbal_cmd_send.yaw = gimba_IMU_data->YawTotalAngle;
+        gimbal_cmd_send.yaw += 0.2;
     }
     else {
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE ;

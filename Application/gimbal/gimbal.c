@@ -102,7 +102,7 @@ void GimbalInit()
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
-            .speed_feedback_source = OTHER_FEED,
+            .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = SPEED_LOOP | ANGLE_LOOP,
             .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
@@ -144,10 +144,7 @@ switch (gimbal_cmd_recv.gimbal_mode) {
             DJIMotorEnable(yaw_motor);
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
 
-              if(gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle+gimbal_cmd_recv.yaw>90){
-                 gimbal_cmd_recv.yaw=-gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle;
-             }
-            DJIMotorSetRef(yaw_motor, -gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
+            DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             //pitch
              LKMotorEnable(pitch_motor);
              // yaw和pitch会在robot_cmd中处理好多圈和单圈
@@ -157,11 +154,11 @@ switch (gimbal_cmd_recv.gimbal_mode) {
         // 巡航模式
    case GIMBAL_CRUISE_MODE:
         DJIMotorEnable(yaw_motor);
-        DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
-        DJIMotorSetRef(yaw_motor, 200);
+        // DJIMotorOuterLoop(yaw_motor, SPEED_LOOP);
+        DJIMotorSetRef(yaw_motor, -gimbal_cmd_recv.yaw); 
         LKMotorEnable(pitch_motor);
-        pitch_cd_ms= DWT_GetTimeline_ms()/150.0f;
-        pitch_cd_ms = 18.0f*sinf(pitch_cd_ms);
+        pitch_cd_ms= DWT_GetTimeline_ms()/100.0f;
+        pitch_cd_ms = 14.0f*sinf(pitch_cd_ms)-4;
             if(last_pitch-pitch_cd_ms<20){
                 last_pitch =pitch_cd_ms;
                 LKMotorSetRef(pitch_motor, pitch_cd_ms);
