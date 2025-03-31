@@ -329,12 +329,16 @@ static void RemoteControlSet(void)
     else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl.is_tracking){
     
         gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
-        gimbal_cmd_send.yaw += 0.2;
+        gimbal_cmd_send.yaw -= 0.2;
     }
     else {
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE ;
         gimbal_cmd_send.yaw -= 0.003f * (float)rc_data[TEMP].rc.rocker_r_;
         gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
+    }
+
+    if(gimba_IMU_data->YawTotalAngle-gimbal_cmd_send.yaw>360 || gimba_IMU_data->YawTotalAngle-gimbal_cmd_send.yaw<-360){
+        gimbal_cmd_send.yaw=gimba_IMU_data->YawTotalAngle;
     }
 
 

@@ -143,7 +143,7 @@ switch (gimbal_cmd_recv.gimbal_mode) {
         //yaw
             DJIMotorEnable(yaw_motor);
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
-
+            
             DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             //pitch
              LKMotorEnable(pitch_motor);
