@@ -98,10 +98,11 @@ void GimbalInit()
             },
             .other_angle_feedback_ptr = &gimba_IMU_data->Pitch,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
-            .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),
+           // .other_speed_feedback_ptr = (&gimba_IMU_data->Gyro[0]),
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
+            .speed_feedback_source = MOTOR_FEED,
             .speed_feedback_source = MOTOR_FEED,
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = SPEED_LOOP | ANGLE_LOOP,
@@ -143,8 +144,11 @@ switch (gimbal_cmd_recv.gimbal_mode) {
         //yaw
             DJIMotorEnable(yaw_motor);
             DJIMotorOuterLoop(yaw_motor, ANGLE_LOOP);
-            
-            DJIMotorSetRef(yaw_motor, gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
+
+              if(gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle+gimbal_cmd_recv.yaw>90){
+                 gimbal_cmd_recv.yaw=-gimbal_cmd_recv.gimbal_imu_data_yaw.YawTotalAngle;
+             }
+            DJIMotorSetRef(yaw_motor, -gimbal_cmd_recv.yaw); // yaw和pitch会在robot_cmd中处理好多圈和单圈
             //pitch
              LKMotorEnable(pitch_motor);
              // yaw和pitch会在robot_cmd中处理好多圈和单圈
