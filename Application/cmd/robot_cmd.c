@@ -100,7 +100,7 @@ static void RemoteControlSet(void);  // 遥控器控制量设置
 // static void RemoteMouseKeySet(void); // 通过遥控器的键鼠控制
 static void EmergencyHandler(void) __attribute__((used));
 static void CalcOffsetAngle(void); // 计算云台和底盘的偏转角度
-
+static float yaw_target;
 static Robot_Status_e robot_state; // 机器人整体工作状态
 
 // static int watch_frispel,watch_frrsper;
@@ -329,17 +329,19 @@ static void RemoteControlSet(void)
     else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl.is_tracking){
     
         gimbal_cmd_send.gimbal_mode     = GIMBAL_CRUISE_MODE;
-        gimbal_cmd_send.yaw -= 0.2;
+        yaw_target += 0.003f * 90;
+        gimbal_cmd_send.yaw =yaw_target;
     }
     else {
         gimbal_cmd_send.gimbal_mode     = GIMBAL_GYRO_MODE ;
-        gimbal_cmd_send.yaw -= 0.003f * (float)rc_data[TEMP].rc.rocker_r_;
+        yaw_target += 0.003f * (float)rc_data[TEMP].rc.rocker_r_;
         gimbal_cmd_send.pitch += 0.004f * (float)rc_data[TEMP].rc.rocker_r1;
+        gimbal_cmd_send.yaw =yaw_target;
     }
 
-    if(gimba_IMU_data->YawTotalAngle-gimbal_cmd_send.yaw>360 || gimba_IMU_data->YawTotalAngle-gimbal_cmd_send.yaw<-360){
-        gimbal_cmd_send.yaw=gimba_IMU_data->YawTotalAngle;
-    }
+    // if(gimba_IMU_data->YawTotalAngle-gimbal_cmd_send.yaw>360 || gimba_IMU_data->YawTotalAngle-gimbal_cmd_send.yaw<-360){
+    //     gimbal_cmd_send.yaw=gimba_IMU_data->YawTotalAngle;
+    // }
 
 
     // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
@@ -400,7 +402,6 @@ static void RemoteControlSet(void)
 
 }
 #endif // DEBUG
-
 #ifdef CHASSIS_BOARD
 /**
  * @brief 初始化底盘板CMD应用
@@ -546,7 +547,7 @@ void ChassisCMDTask(void)
         // chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
         // chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
         // chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
-       if(navigation_ctrl->vx != 0 && navigation_ctrl->vy != 0 && referee_data->GameState.game_progress == 4)  //导航控制
+       if(navigation_ctrl->vx != 0 && navigation_ctrl->vy != 0) //&& referee_data->GameState.game_progress == 4)  //导航控制
         {
             //TODO:game progress限制待添加
             chassis_cmd_send.vx = navigation_ctrl->vx * NAV_K;
