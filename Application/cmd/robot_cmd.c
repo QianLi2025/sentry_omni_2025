@@ -43,9 +43,6 @@ static UARTComm_Instance *gimbal_uart_comm; // 双板通信
 static CAN_Comm_Instance *gimbal_can_comm;
 static CMD_Gimbal_Send_Data_s gimbal_comm_send;
 static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
-static float yanshi_time=0;
-static float yanshi_time_last=0; 
-static float yanshi_time_erro=0;
 Vision_Recv_s vision_ctrl; // 视觉控制信息
 static RC_ctrl_t *rc_data;         // 遥控器数据指针,初始化时返回
 static attitude_t *gimba_IMU_data; // 云台IMU数据
@@ -547,13 +544,13 @@ void ChassisCMDTask(void)
         // chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
         // chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
         // chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
-       if(navigation_ctrl->vx != 0 && navigation_ctrl->vy != 0) //&& referee_data->GameState.game_progress == 4)  //导航控制
+       if(navigation_ctrl->vx != 0 || navigation_ctrl->vy != 0||navigation_ctrl->wz != 0) //&& referee_data->GameState.game_progress == 4)  //导航控制
         {
             //TODO:game progress限制待添加
             chassis_cmd_send.vx = navigation_ctrl->vx * NAV_K;
             chassis_cmd_send.vy = navigation_ctrl->vy * NAV_K;
-            chassis_cmd_send.wz = 0;
-            // chassis_cmd_send.wz = navigation_ctrl->wz * NAV_K;
+            //chassis_cmd_send.wz = 0;
+            chassis_cmd_send.wz = navigation_ctrl->wz * NAV_K*0.5;
             chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
         }
         else{
@@ -565,12 +562,12 @@ void ChassisCMDTask(void)
 
         if (navigation_ctrl->spiral_mode == SPIRAL_ON) //决策小陀螺控制
         {
-            chassis_cmd_send.wz = 1000;
+            chassis_cmd_send.wz = 18000;
         }
-        else if (navigation_ctrl->spiral_mode == SPIRAL_OFF)
-        {
-            chassis_cmd_send.wz = 0;
-        }
+        // else if (navigation_ctrl->spiral_mode == SPIRAL_OFF)
+        // {
+        //     chassis_cmd_send.wz = 0;
+        // }
     }
 
     ChassisCMDSend();

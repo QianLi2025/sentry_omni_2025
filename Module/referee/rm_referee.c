@@ -56,7 +56,7 @@ static void JudgeReadData(uint8_t *buff)
                         memcpy(&referee_info.GameState, (buff + DATA_Offset), LEN_game_state);
                         break;
                     case ID_game_result: // 0x0002
-                        memcpy(&referee_info.GameResult, (buff + DATA_Offset), LEN_game_result);
+                        memcpy(&referee_info.GameRmesult, (buff + DATA_Offset), LEN_game_result);
                         break;
                     case ID_game_robot_survivors: // 0x0003
                         memcpy(&referee_info.GameRobotHP, (buff + DATA_Offset), LEN_game_robot_HP);
@@ -162,5 +162,6 @@ referee_info_t *RefereeInit(UART_HandleTypeDef *referee_usart_handle)
 void RefereeSend(uint8_t *send, uint16_t tx_len)
 {
     USARTSend(referee_usart_instance, send, tx_len, USART_TRANSFER_DMA);
+
     osDelay(115);
 }

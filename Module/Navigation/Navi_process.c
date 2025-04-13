@@ -389,6 +389,22 @@ void NavigationSend(referee_info_t *referee_data)
     SEND_ROBOT_STATUS_DATA.data.projectile_allowance_17mm = referee_data->ProjectileAllowance.projectile_allowance_17mm;
     SEND_ROBOT_STATUS_DATA.data.remaining_gold_coin = referee_data->ProjectileAllowance.remaining_gold_coin;
 
+    SEND_DATA_ALL_ROBOT_HP.data.blue_1_robot_hp = referee_data->GameRobotHP.blue_1_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_2_robot_hp = referee_data->GameRobotHP.blue_2_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_3_robot_hp = referee_data->GameRobotHP.blue_3_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_4_robot_hp = referee_data->GameRobotHP.blue_4_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_7_robot_hp = referee_data->GameRobotHP.blue_7_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_base_hp = referee_data->GameRobotHP.blue_base_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_outpost_hp = referee_data->GameRobotHP.blue_outpost_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_1_robot_hp = referee_data->GameRobotHP.red_1_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_2_robot_hp = referee_data->GameRobotHP.red_2_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_3_robot_hp = referee_data->GameRobotHP.red_3_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_4_robot_hp = referee_data->GameRobotHP.red_4_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_7_robot_hp = referee_data->GameRobotHP.red_7_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_base_hp = referee_data->GameRobotHP.red_base_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_outpost_hp = referee_data->GameRobotHP.red_outpost_HP;
+
+    
 
     UsbSendData();
 }
@@ -582,6 +598,7 @@ void USB_Transmit(uint8_t *buffer, uint16_t len)
 static void UsbSendDebugData(void)
 {
     SEND_DATA_DEBUG.time_stamp = HAL_GetTick();
+
     append_CRC16_check_sum((uint8_t *)&SEND_DATA_DEBUG, sizeof(SendDataDebug_s));
     USB_Transmit((uint8_t *)&SEND_DATA_DEBUG, sizeof(SendDataDebug_s));
 }
@@ -715,6 +732,7 @@ static void UsbSendRobotMotionData(void)
 static void UsbSendGroundRobotPositionData(void)
 {
     SEND_GROUND_ROBOT_POSITION_DATA.time_stamp = HAL_GetTick();
+
     append_CRC16_check_sum((uint8_t *)&SEND_GROUND_ROBOT_POSITION_DATA, sizeof(SendDataGroundRobotPosition_s));
     USB_Transmit((uint8_t *)&SEND_GROUND_ROBOT_POSITION_DATA, sizeof(SendDataGroundRobotPosition_s));
 }
