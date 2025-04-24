@@ -13,6 +13,7 @@
 #define NAVI_PROCESS_H
 
 #include "stdint.h"
+#include "robot_def.h"
 #include "bsp_usart.h"
 #include "rm_referee.h"
 #define NAVIGATION_RECV_HEADER 0xA5u // 视觉接收数据帧头
@@ -199,7 +200,7 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *video_usart_handle);
  *
  *
  */
-void NavigationSend(referee_info_t *referee_data);
+void NavigationSend(referee_info_t *referee_data,RC_XY rc_data);
 
 // /**
 //  * @brief

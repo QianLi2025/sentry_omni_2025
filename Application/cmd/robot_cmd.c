@@ -77,11 +77,14 @@ static referee_info_t *referee_data;                         // 用于获取裁�
 static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
 static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
 static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
+static RC_XY rc_xy;
 
 static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
 static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
 static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信息,包括控制信息和UI绘制相关
 static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
+
+static RC_XY rc;
 #endif
 
 #ifdef ONE_BOARD
@@ -169,10 +172,7 @@ void GimbalCMDGet(void) //获取反馈数据
     SubGetMessage(gimbal_feed_sub, &gimbal_fetch_data); //获取云台反馈数据
     // SubGetMessage(Vision_ctrl_sub, &vision_ctrl);
     delt_t = DWT_GetTimeline_ms()-vision_ctrl.revc_time;
-    // yanshi_time = DWT_GetTimeline_ms();
-    // yanshi_time_erro =yanshi_time-yanshi_time_last;
-    // yanshi_time_last = yanshi_time;
-    // gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)UARTCommGet(gimbal_uart_comm);
+
     gimbal_comm_recv = (CMD_Chassis_Send_Data_s *)CANCommGet(gimbal_can_comm);
     // chassis_fetch_data = gimbal_comm_recv->Chassis_fetch_data;
     // shoot_fetch_data = gimbal_comm_recv->Shoot_fetch_data; 
@@ -208,6 +208,10 @@ void GimbalCMDSend(void)
     gimbal_comm_send.Chassis_Ctr_Cmd.chassis_mode = chassis_cmd_send.chassis_mode;
     gimbal_comm_send.Chassis_Ctr_Cmd.offset_angle = chassis_cmd_send.offset_angle;
 
+    gimbal_comm_send.Chassis_Ctr_Cmd.rc_l1 = rc_data->rc.rocker_l1;
+    gimbal_comm_send.Chassis_Ctr_Cmd.rc_l_ = rc_data->rc.rocker_l_;
+    gimbal_comm_send.Chassis_Ctr_Cmd.rc_r1 = rc_data->rc.rocker_r1;
+    gimbal_comm_send.Chassis_Ctr_Cmd.rc_r_ = rc_data->rc.rocker_r_;
     
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
     return;
@@ -296,7 +300,9 @@ static void RemoteControlSet(void)
     chassis_cmd_send.vx = -80.0f * (float)rc_data[TEMP].rc.rocker_l_; // _水平方向
     chassis_cmd_send.vy = -80.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
     if(switch_is_down(rc_data[TEMP].rc.switch_right)){
-        chassis_cmd_send.wz = -50.0f * (float)rc_data[TEMP].rc.dial;
+        if(rc_data[TEMP].rc.dial>630||rc_data[TEMP].rc.dial<-630)
+        chassis_cmd_send.wz = 0;
+        else chassis_cmd_send.wz = -50.0f * (float)rc_data[TEMP].rc.dial/2;
     }else if(switch_is_up(rc_data[TEMP].rc.switch_right)){
         chassis_cmd_send.wz = -30*400;
     }
@@ -378,12 +384,8 @@ static void RemoteControlSet(void)
    
     if( shoot_cmd_send.friction_mode == FRICTION_ON){
 
-         if (switch_is_mid(rc_data[TEMP].rc.switch_left) && !switch_is_down(rc_data[TEMP].rc.switch_right) )
-        {
-            shoot_cmd_send.load_mode = LOAD_MEDIUM; 
-            shoot_cmd_send.shoot_rate = (float)rc_data[TEMP].rc.dial*15/660;
-        }
-        else if (vision_ctrl.is_shooting == 1 && switch_is_up(rc_data[TEMP].rc.switch_left))
+
+        if (vision_ctrl.is_shooting == 1 && switch_is_up(rc_data[TEMP].rc.switch_left))
         {
             shoot_cmd_send.load_mode = LOAD_MEDIUM;
             shoot_cmd_send.shoot_rate = SHOOT_RATE;
@@ -482,6 +484,11 @@ void ChassisCMDGet(void)
     chassis_cmd_send.offset_angle = chassis_comm_recv->Chassis_Ctr_Cmd.offset_angle;
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
+
+    rc.rc_l1 = chassis_comm_recv->Chassis_Ctr_Cmd.rc_l1;
+    rc.rc_l_ = chassis_comm_recv->Chassis_Ctr_Cmd.rc_l_;
+    rc.rc_r1 = chassis_comm_recv->Chassis_Ctr_Cmd.rc_r1;
+    rc.rc_r_ = chassis_comm_recv->Chassis_Ctr_Cmd.rc_r_;
     //TODO：发射，云台，Robot 状态反馈
 }
 
@@ -540,30 +547,28 @@ void ChassisCMDTask(void)
     }
     else if (chassis_cmd_send.chassis_mode == CHASSIS_NAV) //导航与遥控混合控制 ATTENTION：此处各个if的先后顺序极其重要！谨慎修改！
     {
-        //  gimbal_cmd_send.yaw   = (vision_ctrl->yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl->yaw);
-        // chassis_cmd_send.vx = (navigation_ctrl->vx == 0 ? chassis_cmd_send.vx : navigation_ctrl->vx);
-        // chassis_cmd_send.vy = (navigation_ctrl->vy == 0 ? chassis_cmd_send.vy : navigation_ctrl->vy);
-        // chassis_cmd_send.wz = (navigation_ctrl->wz == 0 ? chassis_cmd_send.wz : navigation_ctrl->wz);
-       if(navigation_ctrl->vx != 0 || navigation_ctrl->vy != 0||navigation_ctrl->wz != 0) //&& referee_data->GameState.game_progress == 4)  //导航控制
+
+       if(navigation_ctrl->vx != 0 || navigation_ctrl->vy != 0||navigation_ctrl->wz !=0) //&& referee_data->GameState.game_progress == 4)  //导航控制
         {
             //TODO:game progress限制待添加
             chassis_cmd_send.vx = navigation_ctrl->vx * NAV_K;
             chassis_cmd_send.vy = navigation_ctrl->vy * NAV_K;
-            //chassis_cmd_send.wz = 0;
-            chassis_cmd_send.wz = navigation_ctrl->wz * NAV_K*0.5;
+            chassis_cmd_send.wz = -navigation_ctrl->wz * NAV_K*0.5;
             chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
-        }
-        else{
-            // chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
-            chassis_cmd_send.vx = chassis_cmd_send.vx;
-            chassis_cmd_send.vy = chassis_cmd_send.vy;
-            chassis_cmd_send.wz = chassis_cmd_send.wz;
-        }
+            if(navigation_ctrl->wz>10||navigation_ctrl->wz<-10){chassis_cmd_send.wz=0;}
 
-        if (navigation_ctrl->spiral_mode == SPIRAL_ON) //决策小陀螺控制
-        {
-            chassis_cmd_send.wz = 18000;
         }
+        // else{
+        //     // chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
+        //     chassis_cmd_send.vx = chassis_cmd_send.vx;
+        //     chassis_cmd_send.vy = chassis_cmd_send.vy;
+        //     chassis_cmd_send.wz = chassis_cmd_send.wz;
+        // }
+
+        // if (navigation_ctrl->spiral_mode == SPIRAL_ON) //决策小陀螺控制
+        // {
+        //     chassis_cmd_send.wz = 18000;
+        // }
         // else if (navigation_ctrl->spiral_mode == SPIRAL_OFF)
         // {
         //     chassis_cmd_send.wz = 0;
@@ -571,7 +576,7 @@ void ChassisCMDTask(void)
     }
 
     ChassisCMDSend();
-    NavigationSend(referee_data);
+    NavigationSend(referee_data,rc);
 }
 #endif
 

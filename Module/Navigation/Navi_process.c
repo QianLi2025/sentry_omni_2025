@@ -11,10 +11,10 @@
 #include "custom_typedef.h"
 #include "CRC8_CRC16.h"
 #include "robot_param_omni_infantry.h"
-#define USB_TASK_CONTROL_TIME 1  // ms
+#define USB_TASK_CONTROL_TIME 1 // ms
 
-#define USB_OFFLINE_THRESHOLD 100  // ms
-#define USB_CONNECT_CNT 10
+#define USB_OFFLINE_THRESHOLD 100 // ms
+#define USB_CONNECT_CNT       10
 
 // clang-format off
 
@@ -22,6 +22,7 @@
 #define SEND_DURATION_Imu         5   // ms
 #define SEND_DURATION_RobotStateInfo   10  // ms
 #define SEND_DURATION_Event       10  // ms
+#define SEND_DURATION_RC       10  // ms
 #define SEND_DURATION_Pid         10  // ms
 #define SEND_DURATION_AllRobotHp  10  // ms
 #define SEND_DURATION_GameStatus  10  // ms
@@ -34,17 +35,15 @@
 
 // clang-format on
 
-#define USB_RX_DATA_SIZE 256  // byte
-#define USB_RECEIVE_LEN 150   // byte
-#define HEADER_SIZE 4         // byte
+#define USB_RX_DATA_SIZE 256 // byte
+#define USB_RECEIVE_LEN  150 // byte
+#define HEADER_SIZE      4   // byte
 
 // 判断USB连接状态用到的一些变量
-static bool USB_OFFLINE = true;
-static float RECEIVE_TIME = 0;
-static uint32_t LATEST_RX_TIMESTAMP = 0;
+static bool USB_OFFLINE              = true;
+static float RECEIVE_TIME            = 0;
+static uint32_t LATEST_RX_TIMESTAMP  = 0;
 static uint32_t CONTINUE_RECEIVE_CNT = 0;
-
-
 
 // 数据接收结构体
 static ReceiveDataRobotCmd_s RECEIVE_ROBOT_CMD_DATA;
@@ -56,7 +55,7 @@ RobotCmdData_t ROBOT_CMD_DATA;
 static RC_ctrl_t VIRTUAL_RC_CTRL;
 
 /*================================================移植end====================================*/
-static Navigation_Instance *navigation_instance; //用于和导航通信的串口实例
+static Navigation_Instance *navigation_instance; // 用于和导航通信的串口实例
 static uint8_t *nav_recv_buff __attribute__((unused));
 static Daemon_Instance *navigation_daemon_instance;
 // 全局变量区
@@ -71,20 +70,19 @@ void USB_Transmit(uint8_t *buffer, uint16_t len);
 
 /*=================================移植发送begin==================================*/
 
-
-#define CheckDurationAndSend(send_name)                                                  \
-    do {                                                                                 \
+#define CheckDurationAndSend(send_name)                                                \
+    do {                                                                               \
         if ((HAL_GetTick() - LAST_SEND_TIME.send_name) >= SEND_DURATION_##send_name) { \
             LAST_SEND_TIME.send_name = HAL_GetTick();                                  \
-            UsbSend##send_name##Data();                                                  \
-        }                                                                                \
+            UsbSend##send_name##Data();                                                \
+        }                                                                              \
     } while (0)
 
 // Variable Declarations
 static uint8_t USB_RX_BUF[USB_RX_DATA_SIZE];
 
-static const Imu_t * IMU;
-static const ChassisSpeedVector_t * FDB_SPEED_VECTOR;
+static const Imu_t *IMU;
+static const ChassisSpeedVector_t *FDB_SPEED_VECTOR;
 
 // 发送数据间隔时间
 typedef struct
@@ -95,6 +93,7 @@ typedef struct
     uint32_t Event;
     uint32_t Pid;
     uint32_t AllRobotHp;
+    uint32_t RC;
     uint32_t GameStatus;
     uint32_t RobotMotion;
     uint32_t GroundRobotPosition;
@@ -106,19 +105,20 @@ typedef struct
 static LastSendTime_t LAST_SEND_TIME;
 // // 数据发送结构体
 // // clang-format off
-static SendDataDebug_s       SEND_DATA_DEBUG;
-static SendDataImu_s         SEND_DATA_IMU;
-static SendDataRobotStateInfo_s   SEND_DATA_ROBOT_STATE_INFO;
-static SendDataEvent_s       SEND_DATA_EVENT;
-static SendDataPidDebug_s    SEND_DATA_PID;
-static SendDataAllRobotHp_s  SEND_DATA_ALL_ROBOT_HP;
-static SendDataGameStatus_s  SEND_DATA_GAME_STATUS;
+static SendDataDebug_s SEND_DATA_DEBUG;
+static SendDataImu_s SEND_DATA_IMU; // ok
+static SendDataRobotStateInfo_s SEND_DATA_ROBOT_STATE_INFO;
+static SendDataEvent_s SEND_DATA_EVENT; // ok
+static SendDataRC_s SEND_DATA_RC; // ok
+static SendDataPidDebug_s SEND_DATA_PID;
+static SendDataAllRobotHp_s SEND_DATA_ALL_ROBOT_HP; // ok
+static SendDataGameStatus_s SEND_DATA_GAME_STATUS;  // ok
 static SendDataRobotMotion_s SEND_ROBOT_MOTION_DATA;
-static SendDataGroundRobotPosition_s SEND_GROUND_ROBOT_POSITION_DATA;
-static SendDataRfidStatus_s  SEND_RFID_STATUS_DATA;
-static SendDataRobotStatus_s SEND_ROBOT_STATUS_DATA;
-static SendDataJointState_s  SEND_JOINT_STATE_DATA;
-static SendDataBuff_s        SEND_BUFF_DATA;
+static SendDataGroundRobotPosition_s SEND_GROUND_ROBOT_POSITION_DATA;//ok
+static SendDataRfidStatus_s SEND_RFID_STATUS_DATA;
+static SendDataRobotStatus_s SEND_ROBOT_STATUS_DATA; // ok
+static SendDataJointState_s SEND_JOINT_STATE_DATA;
+static SendDataBuff_s SEND_BUFF_DATA;
 
 // clang-format on
 
@@ -132,6 +132,7 @@ static void UsbSendRobotStateInfoData(void);
 static void UsbSendEventData(void);
 // static void UsbSendPIdDebugData(void);
 static void UsbSendAllRobotHpData(void);
+static void UsbSendRCData(void);
 static void UsbSendGameStatusData(void);
 static void UsbSendRobotMotionData(void);
 static void UsbSendGroundRobotPositionData(void);
@@ -139,11 +140,6 @@ static void UsbSendRfidStatusData(void);
 static void UsbSendRobotStatusData(void);
 static void UsbSendJointStateData(void);
 static void UsbSendBuffData(void);
-
-
-
-
-
 
 /*=============================移植接收begin============================================*/
 /**
@@ -155,29 +151,29 @@ static void UsbSendBuffData(void);
 static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
 {
     // static uint32_t len = USB_RECEIVE_LEN;
-    uint8_t * rx_data_start_address = rx_buff;  // 接收数据包时存放于缓存区的起始位置
-    uint8_t * rx_data_end_address;  // 接收数据包时存放于缓存区的结束位置
-    uint8_t * sof_address = rx_buff;
+    uint8_t *rx_data_start_address = rx_buff; // 接收数据包时存放于缓存区的起始位置
+    uint8_t *rx_data_end_address;             // 接收数据包时存放于缓存区的结束位置
+    uint8_t *sof_address = rx_buff;
 
     // 计算数据包的结束位置
     rx_data_end_address = rx_data_start_address + USB_RECEIVE_LEN;
     // 读取数据
     // USB_Receive(rx_data_start_address, &len);  // Read data into the buffer
 
-    while (sof_address <= rx_data_end_address) {  // 解析缓冲区中的所有数据包
+    while (sof_address <= rx_data_end_address) { // 解析缓冲区中的所有数据包
         // 寻找帧头位置
         while (*(sof_address) != RECEIVE_SOF && (sof_address <= rx_data_end_address)) {
             sof_address++;
         }
         // 判断是否超出接收数据范围
         if (sof_address > rx_data_end_address) {
-            break;  //退出循环
+            break; // 退出循环
         }
         // 检查CRC8校验
         bool crc8_ok = verify_CRC8_check_sum(sof_address, HEADER_SIZE);
         if (crc8_ok) {
             uint8_t data_len = sof_address[1];
-            uint8_t data_id = sof_address[2];
+            uint8_t data_id  = sof_address[2];
             // 检查整包CRC16校验 4: header size, 2: crc16 size
             bool crc16_ok = verify_CRC16_check_sum(sof_address, 4 + data_len + 2);
             if (crc16_ok) {
@@ -196,11 +192,11 @@ static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
                 }
                 if (*((uint32_t *)(&sof_address[4])) > LATEST_RX_TIMESTAMP) {
                     LATEST_RX_TIMESTAMP = *((uint32_t *)(&sof_address[4]));
-                    RECEIVE_TIME = DWT_GetTimeline_ms();
+                    RECEIVE_TIME        = DWT_GetTimeline_ms();
                 }
             }
             sof_address += (data_len + HEADER_SIZE + 2);
-        } else {  //CRC8校验失败，移动到下一个字节
+        } else { // CRC8校验失败，移动到下一个字节
             sof_address++;
         }
     }
@@ -216,9 +212,9 @@ static void NaviRecvProcess(Navigation_Recv_s *recv, uint8_t *rx_buff)
         memcpy(nav_recv_buff[0], sof_address, remaining_data_len);
     }
 
-    recv->vx = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vx;
-    recv->vy = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vy;
-    recv->wz = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.wz;
+    recv->vx          = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vx;
+    recv->vy          = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.vy;
+    recv->wz          = RECEIVE_ROBOT_CMD_DATA.data.speed_vector.wz;
     recv->spiral_mode = RECEIVE_ROBOT_CMD_DATA.data.chassis.spiral_mode;
 }
 
@@ -237,23 +233,19 @@ static void NavigationOfflineCallback(void *id)
 #endif // !VISION_USE_UART
 }
 
-
 void NavigationSetRefreeDate()
 {
-
 }
 
 void NavigationSetGameDate()
 {
-
 }
-
 
 /**
  * @brief 用于注册一个视觉接收数据结构体,返回一个视觉接收数据结构体指针
  *
- * 
- * 
+ *
+ *
  * @param recv_config
  * @return Vision_Recv_s*
  */
@@ -278,9 +270,9 @@ Navigation_Send_s *NavigationSendRegister(Navigation_Send_Init_Config_s *send_co
     Navigation_Send_s *send_data = (Navigation_Send_s *)malloc(sizeof(Navigation_Send_s));
     memset(send_data, 0, sizeof(Navigation_Send_s));
 
-    send_data->header       = send_config->header;
+    send_data->header = send_config->header;
     // send_data->detect_color = send_config->detect_color;
-    send_data->tail         = send_config->tail;
+    send_data->tail = send_config->tail;
     return send_data;
 }
 
@@ -298,19 +290,18 @@ Navigation_Send_s *NavigationSendRegister(Navigation_Send_Init_Config_s *send_co
 static void NaviDecodeVision(uint16_t var)
 {
 
-        
     // UNUSED(var); // 仅为了消除警告
     // if (nav_recv_buff[0] == navigation_instance->recv_data->header) {
     //     // 读取视觉数据
     //     /* 接收校验位 */
     //     memcpy(&navigation_instance->recv_data->checksum, &nav_recv_buff[NAVIGATION_RECV_SIZE - 2], 2);
     //     if (navigation_instance->recv_data->checksum == Get_CRC16_Check_Sum(nav_recv_buff, NAVIGATION_RECV_SIZE - 2, CRC_INIT)) {
-            DaemonReload(navigation_daemon_instance);
-            NaviRecvProcess(navigation_instance->recv_data, nav_recv_buff);
-        // } else {
-        //     memset(navigation_instance->recv_data, 0, sizeof(Navigation_Recv_s));
-        // }
- //   } 
+    DaemonReload(navigation_daemon_instance);
+    NaviRecvProcess(navigation_instance->recv_data, nav_recv_buff);
+    // } else {
+    //     memset(navigation_instance->recv_data, 0, sizeof(Navigation_Recv_s));
+    // }
+    //   }
 }
 /**
  * @brief 用于注册一个视觉通信模块实例,返回一个视觉接收数据结构体指针
@@ -327,15 +318,15 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *navi_usart_handle)
         .header = NAVIGATION_RECV_HEADER,
     };
 
-    USB_Init_Config_s conf     = {.rx_cbk = NaviDecodeVision};
-    nav_recv_buff              = USBInit(conf);
-    recv_config.header         = NAVIGATION_RECV_HEADER;
+    USB_Init_Config_s conf         = {.rx_cbk = NaviDecodeVision};
+    nav_recv_buff                  = USBInit(conf);
+    recv_config.header             = NAVIGATION_RECV_HEADER;
     navigation_instance->recv_data = NavigationRecvRegister(&recv_config);
 
     Navigation_Send_Init_Config_s send_config = {
-        .header       = NAVIGATION_SEND_HEADER,
+        .header = NAVIGATION_SEND_HEADER,
         // .detect_color = VISION_DETECT_COLOR_RED,
-        .tail         = NAVIGATION_SEND_TAIL,
+        .tail = NAVIGATION_SEND_TAIL,
     };
     navigation_instance->send_data = NavigationSendRegister(&send_config);
     // 为master process注册daemon,用于判断视觉通信是否离线
@@ -355,57 +346,120 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *navi_usart_handle)
  * @param send 待发送数据
  *
  */
-void NavigationSend(referee_info_t *referee_data)
+void NavigationSend(referee_info_t *referee_data,RC_XY rc_data)
 {
     // static uint8_t send_buff[NAVIGATION_SEND_SIZE];
     // NaviSendProcess(navigation_instance->send_data, send_buff);
     //  USBTransmit(send_buff, NAVIGATION_SEND_SIZE);
 
-    uint32_t event_data = referee_data->EventData.event_type;
+    uint32_t event_data                              = referee_data->EventData.event_type;
     SEND_DATA_EVENT.data.non_overlapping_supply_zone = (event_data >> 0) & 0x01;
-    SEND_DATA_EVENT.data.overlapping_supply_zone = (event_data >> 1) & 0x01;
-    SEND_DATA_EVENT.data.supply_zone = (event_data >> 2) & 0x01;
-    SEND_DATA_EVENT.data.small_energy = (event_data >> 3) & 0x01;
-    SEND_DATA_EVENT.data.big_energy = (event_data >> 4) & 0x01;
-    SEND_DATA_EVENT.data.central_highland = (event_data >> 5) & 0x03;
-    SEND_DATA_EVENT.data.trapezoidal_highland = (event_data >> 7) & 0x03;
-    SEND_DATA_EVENT.data.center_gain_zone = (event_data >> 21) & 0x03;
-    
-    SEND_DATA_GAME_STATUS.data.game_progress = referee_data->GameState.game_progress;
+    SEND_DATA_EVENT.data.overlapping_supply_zone     = (event_data >> 1) & 0x01;
+    SEND_DATA_EVENT.data.supply_zone                 = (event_data >> 2) & 0x01;
+    SEND_DATA_EVENT.data.small_energy                = (event_data >> 3) & 0x01;
+    SEND_DATA_EVENT.data.big_energy                  = (event_data >> 4) & 0x01;
+    SEND_DATA_EVENT.data.central_highland            = (event_data >> 5) & 0x03;
+    SEND_DATA_EVENT.data.trapezoidal_highland        = (event_data >> 7) & 0x03;
+    SEND_DATA_EVENT.data.center_gain_zone            = (event_data >> 21) & 0x03;
+
+    SEND_DATA_GAME_STATUS.data.game_progress     = referee_data->GameState.game_progress;
     SEND_DATA_GAME_STATUS.data.stage_remain_time = referee_data->GameState.stage_remain_time;
 
-    SEND_ROBOT_STATUS_DATA.data.robot_id = referee_data->GameRobotState.robot_id;
-    SEND_ROBOT_STATUS_DATA.data.robot_level = referee_data->GameRobotState.robot_level;
-    SEND_ROBOT_STATUS_DATA.data.current_hp = referee_data->GameRobotState.current_HP;
-    SEND_ROBOT_STATUS_DATA.data.maximum_hp = referee_data->GameRobotState.maximum_HP;
+    SEND_ROBOT_STATUS_DATA.data.robot_id                     = referee_data->GameRobotState.robot_id;
+    SEND_ROBOT_STATUS_DATA.data.robot_level                  = referee_data->GameRobotState.robot_level;
+    SEND_ROBOT_STATUS_DATA.data.current_hp                   = referee_data->GameRobotState.current_HP;
+    SEND_ROBOT_STATUS_DATA.data.maximum_hp                   = referee_data->GameRobotState.maximum_HP;
     SEND_ROBOT_STATUS_DATA.data.shooter_barrel_cooling_value = referee_data->GameRobotState.shooter_barrel_cooling_value;
-    SEND_ROBOT_STATUS_DATA.data.shooter_barrel_heat_limit = referee_data->GameRobotState.shooter_barrel_heat_limit;
-    SEND_ROBOT_STATUS_DATA.data.shooter_17mm_1_barrel_heat = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
-    SEND_ROBOT_STATUS_DATA.data.robot_pos_x = referee_data->GameRobotPos.x;
-    SEND_ROBOT_STATUS_DATA.data.robot_pos_y = referee_data->GameRobotPos.y;
-    SEND_ROBOT_STATUS_DATA.data.robot_pos_angle = referee_data->GameRobotPos.angle;
-    SEND_ROBOT_STATUS_DATA.data.armor_id = referee_data->RobotHurt.armor_id;
-    SEND_ROBOT_STATUS_DATA.data.hp_deduction_reason = referee_data->RobotHurt.hurt_type;
-    SEND_ROBOT_STATUS_DATA.data.projectile_allowance_17mm = referee_data->ProjectileAllowance.projectile_allowance_17mm;
-    SEND_ROBOT_STATUS_DATA.data.remaining_gold_coin = referee_data->ProjectileAllowance.remaining_gold_coin;
+    SEND_ROBOT_STATUS_DATA.data.shooter_barrel_heat_limit    = referee_data->GameRobotState.shooter_barrel_heat_limit;
+    SEND_ROBOT_STATUS_DATA.data.shooter_17mm_1_barrel_heat   = referee_data->PowerHeatData.shooter_17mm_1_barrel_heat;
+    SEND_ROBOT_STATUS_DATA.data.robot_pos_x                  = referee_data->GameRobotPos.x;
+    SEND_ROBOT_STATUS_DATA.data.robot_pos_y                  = referee_data->GameRobotPos.y;
+    SEND_ROBOT_STATUS_DATA.data.robot_pos_angle              = referee_data->GameRobotPos.angle;
+    SEND_ROBOT_STATUS_DATA.data.armor_id                     = referee_data->RobotHurt.armor_id;
+    SEND_ROBOT_STATUS_DATA.data.hp_deduction_reason          = referee_data->RobotHurt.hurt_type;
+    SEND_ROBOT_STATUS_DATA.data.projectile_allowance_17mm    = referee_data->ProjectileAllowance.projectile_allowance_17mm;
+    SEND_ROBOT_STATUS_DATA.data.remaining_gold_coin          = referee_data->ProjectileAllowance.remaining_gold_coin;
 
     SEND_DATA_ALL_ROBOT_HP.data.blue_1_robot_hp = referee_data->GameRobotHP.blue_1_robot_HP;
     SEND_DATA_ALL_ROBOT_HP.data.blue_2_robot_hp = referee_data->GameRobotHP.blue_2_robot_HP;
     SEND_DATA_ALL_ROBOT_HP.data.blue_3_robot_hp = referee_data->GameRobotHP.blue_3_robot_HP;
     SEND_DATA_ALL_ROBOT_HP.data.blue_4_robot_hp = referee_data->GameRobotHP.blue_4_robot_HP;
     SEND_DATA_ALL_ROBOT_HP.data.blue_7_robot_hp = referee_data->GameRobotHP.blue_7_robot_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_base_hp = referee_data->GameRobotHP.blue_base_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.blue_base_hp    = referee_data->GameRobotHP.blue_base_HP;
     SEND_DATA_ALL_ROBOT_HP.data.blue_outpost_hp = referee_data->GameRobotHP.blue_outpost_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_1_robot_hp = referee_data->GameRobotHP.red_1_robot_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_2_robot_hp = referee_data->GameRobotHP.red_2_robot_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_3_robot_hp = referee_data->GameRobotHP.red_3_robot_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_4_robot_hp = referee_data->GameRobotHP.red_4_robot_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_7_robot_hp = referee_data->GameRobotHP.red_7_robot_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_base_hp = referee_data->GameRobotHP.red_base_HP;
-    SEND_DATA_ALL_ROBOT_HP.data.red_outpost_hp = referee_data->GameRobotHP.red_outpost_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_1_robot_hp  = referee_data->GameRobotHP.red_1_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_2_robot_hp  = referee_data->GameRobotHP.red_2_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_3_robot_hp  = referee_data->GameRobotHP.red_3_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_4_robot_hp  = referee_data->GameRobotHP.red_4_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_7_robot_hp  = referee_data->GameRobotHP.red_7_robot_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_base_hp     = referee_data->GameRobotHP.red_base_HP;
+    SEND_DATA_ALL_ROBOT_HP.data.red_outpost_hp  = referee_data->GameRobotHP.red_outpost_HP;
 
+    if (referee_data->GameRobotState.robot_id < 10) { // red
+        if (referee_data->MapRobotData.target_robot_id == 1) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.hero_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.hero_y = referee_data->MapRobotData.target_position_y;
+        }
+
+        if (referee_data->MapRobotData.target_robot_id == 2) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.engineer_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.engineer_y = referee_data->MapRobotData.target_position_y;
+        }
+
+        if (referee_data->MapRobotData.target_robot_id == 3) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_3_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_3_y = referee_data->MapRobotData.target_position_y;
+        }
+
+        if (referee_data->MapRobotData.target_robot_id == 4) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_4_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_4_y = referee_data->MapRobotData.target_position_y;
+        }
+        if (referee_data->MapRobotData.target_robot_id == 5) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_5_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_5_y = referee_data->MapRobotData.target_position_y;
+        }
+    }
+    if (referee_data->GameRobotState.robot_id > 100) { // blue
+        if (referee_data->MapRobotData.target_robot_id == 101) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.hero_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.hero_y = referee_data->MapRobotData.target_position_y;
+        }
+
+        if (referee_data->MapRobotData.target_robot_id == 102) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.engineer_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.engineer_y = referee_data->MapRobotData.target_position_y;
+        }
+
+        if (referee_data->MapRobotData.target_robot_id == 103) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_3_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_3_y = referee_data->MapRobotData.target_position_y;
+        }
+
+        if (referee_data->MapRobotData.target_robot_id == 104) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_4_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_4_y = referee_data->MapRobotData.target_position_y;
+        }
+        if (referee_data->MapRobotData.target_robot_id == 105) {
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_5_x = referee_data->MapRobotData.target_position_x;
+            SEND_GROUND_ROBOT_POSITION_DATA.data.standard_5_y = referee_data->MapRobotData.target_position_y;
+        }
+    }
+    SEND_BUFF_DATA.data.recovery_buff = referee_data->BuffMusk.recovery_buff;
+    SEND_BUFF_DATA.data.attack_buff = referee_data->BuffMusk.attack_buff;
+    SEND_BUFF_DATA.data.defence_buff = referee_data->BuffMusk.defence_buff;
+    SEND_BUFF_DATA.data.cooling_buff = referee_data->BuffMusk.cooling_buff;
+    SEND_BUFF_DATA.data.vulnerability_buff = referee_data->BuffMusk.vulnerability_buff;
+    SEND_RFID_STATUS_DATA.data.friendly_supply_zone_non_exchange = (referee_data->RFIDStatus.rfid_status & 0x00000001) ? 1 : 0;
+    SEND_RFID_STATUS_DATA.data.friendly_supply_zone_exchange = (referee_data->RFIDStatus.rfid_status & 0x00000002)? 1 : 0;
+    SEND_RFID_STATUS_DATA.data.center_gain_point = (referee_data->RFIDStatus.rfid_status >> 21) & 0x03;
+    SEND_RFID_STATUS_DATA.data.friendly_trapezoidal_highland_gain_point = ((referee_data->RFIDStatus.rfid_status >> 7) & 0x03) == 0x03 ? 1 : 0;
+    SEND_RFID_STATUS_DATA.data.friendly_central_highland_lower_gain_point = (((referee_data->RFIDStatus.rfid_status >> 5) & 0x03) == 0x02) ? 1 : 0;
     
-
+    SEND_DATA_RC.data.rc_l1 = rc_data.rc_l1;
+    SEND_DATA_RC.data.rc_l_ = rc_data.rc_l_;
+    SEND_DATA_RC.data.rc_r1 = rc_data.rc_r1;
+    SEND_DATA_RC.data.rc_r_ = rc_data.rc_r_;
     UsbSendData();
 }
 
@@ -427,7 +481,7 @@ static void UsbSendData(void)
     // 发送PidDebug数据
     // CheckDurationAndSend(Pid);
     // 发送AllRobotHp数据
-    CheckDurationAndSend(AllRobotHp); 
+    CheckDurationAndSend(AllRobotHp);
     // 发送GameStatus数据
     CheckDurationAndSend(GameStatus);
     // 发送RobotMotion数据
@@ -442,6 +496,8 @@ static void UsbSendData(void)
     CheckDurationAndSend(JointState);
     // 发送Buff数据
     CheckDurationAndSend(Buff);
+    // 发送遥控器数据
+    CheckDurationAndSend(RC);
 }
 
 /**
@@ -466,129 +522,134 @@ static void UsbInit(void)
     /*******************************************************************************/
     /* Serial                                                                     */
     /*******************************************************************************/
-    
+
     // 1.初始化调试数据包
     // 帧头部分
     SEND_DATA_DEBUG.frame_header.sof = SEND_SOF;
     SEND_DATA_DEBUG.frame_header.len = (uint8_t)(sizeof(SendDataDebug_s) - 6);
-    SEND_DATA_DEBUG.frame_header.id = DEBUG_DATA_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_DATA_DEBUG.frame_header.id  = DEBUG_DATA_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_DATA_DEBUG.frame_header), sizeof(SEND_DATA_DEBUG.frame_header));
     // 数据部分
     for (uint8_t i = 0; i < DEBUG_PACKAGE_NUM; i++) {
-        SEND_DATA_DEBUG.packages[i].type = 1;
+        SEND_DATA_DEBUG.packages[i].type    = 1;
         SEND_DATA_DEBUG.packages[i].name[0] = '\0';
     }
-    
+
     // 2.初始化IMU数据包
     SEND_DATA_IMU.frame_header.sof = SEND_SOF;
     SEND_DATA_IMU.frame_header.len = (uint8_t)(sizeof(SendDataImu_s) - 6);
-    SEND_DATA_IMU.frame_header.id = IMU_DATA_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_DATA_IMU.frame_header.id  = IMU_DATA_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_DATA_IMU.frame_header), sizeof(SEND_DATA_IMU.frame_header));
     /*******************************************************************************/
     /* Referee                                                                     */
     /*******************************************************************************/
-    
+
     // 3.初始化机器人信息数据包
     // 帧头部分
     SEND_DATA_ROBOT_STATE_INFO.frame_header.sof = SEND_SOF;
     SEND_DATA_ROBOT_STATE_INFO.frame_header.len = (uint8_t)(sizeof(SendDataRobotStateInfo_s) - 6);
-    SEND_DATA_ROBOT_STATE_INFO.frame_header.id = ROBOT_STATE_INFO_DATA_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_DATA_ROBOT_STATE_INFO.frame_header.id  = ROBOT_STATE_INFO_DATA_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_DATA_ROBOT_STATE_INFO.frame_header), sizeof(SEND_DATA_ROBOT_STATE_INFO.frame_header));
     // 数据部分
     SEND_DATA_ROBOT_STATE_INFO.data.type.chassis = CHASSIS_TYPE;
-    SEND_DATA_ROBOT_STATE_INFO.data.type.gimbal = GIMBAL_TYPE;
-    SEND_DATA_ROBOT_STATE_INFO.data.type.shoot = SHOOT_TYPE;
-    SEND_DATA_ROBOT_STATE_INFO.data.type.arm = MECHANICAL_ARM_TYPE;
-    
+    SEND_DATA_ROBOT_STATE_INFO.data.type.gimbal  = GIMBAL_TYPE;
+    SEND_DATA_ROBOT_STATE_INFO.data.type.shoot   = SHOOT_TYPE;
+    SEND_DATA_ROBOT_STATE_INFO.data.type.arm     = MECHANICAL_ARM_TYPE;
+
     // 4.初始化事件数据包
     SEND_DATA_EVENT.frame_header.sof = SEND_SOF;
     SEND_DATA_EVENT.frame_header.len = (uint8_t)(sizeof(SendDataEvent_s) - 6);
-    SEND_DATA_EVENT.frame_header.id = EVENT_DATA_SEND_ID;
-    append_CRC8_check_sum
-        ((uint8_t *)(&SEND_DATA_EVENT.frame_header), sizeof(SEND_DATA_EVENT.frame_header));
+    SEND_DATA_EVENT.frame_header.id  = EVENT_DATA_SEND_ID;
+    append_CRC8_check_sum((uint8_t *)(&SEND_DATA_EVENT.frame_header), sizeof(SEND_DATA_EVENT.frame_header));
 
     // 5.初始化pid调参数据
     SEND_DATA_PID.frame_header.sof = SEND_SOF;
     SEND_DATA_PID.frame_header.len = (uint8_t)(sizeof(SendDataPidDebug_s) - 6);
-    SEND_DATA_PID.frame_header.id = PID_DEBUG_DATA_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_DATA_PID.frame_header.id  = PID_DEBUG_DATA_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_DATA_PID.frame_header), sizeof(SEND_DATA_PID.frame_header));
 
     // 6.初始化所有机器人血量数据
     SEND_DATA_ALL_ROBOT_HP.frame_header.sof = SEND_SOF;
     SEND_DATA_ALL_ROBOT_HP.frame_header.len = (uint8_t)(sizeof(SendDataAllRobotHp_s) - 6);
-    SEND_DATA_ALL_ROBOT_HP.frame_header.id = ALL_ROBOT_HP_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_DATA_ALL_ROBOT_HP.frame_header.id  = ALL_ROBOT_HP_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_DATA_ALL_ROBOT_HP.frame_header),
         sizeof(SEND_DATA_ALL_ROBOT_HP.frame_header));
 
     // 7.初始化比赛状态数据
     SEND_DATA_GAME_STATUS.frame_header.sof = SEND_SOF;
     SEND_DATA_GAME_STATUS.frame_header.len = (uint8_t)(sizeof(SendDataGameStatus_s) - 6);
-    SEND_DATA_GAME_STATUS.frame_header.id = GAME_STATUS_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_DATA_GAME_STATUS.frame_header.id  = GAME_STATUS_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_DATA_GAME_STATUS.frame_header),
         sizeof(SEND_DATA_GAME_STATUS.frame_header));
-    
+
     // 8.初始化机器人运动数据
     SEND_ROBOT_MOTION_DATA.frame_header.sof = SEND_SOF;
     SEND_ROBOT_MOTION_DATA.frame_header.len = (uint8_t)(sizeof(SendDataRobotMotion_s) - 6);
-    SEND_ROBOT_MOTION_DATA.frame_header.id = ROBOT_MOTION_DATA_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_ROBOT_MOTION_DATA.frame_header.id  = ROBOT_MOTION_DATA_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_ROBOT_MOTION_DATA.frame_header),
         sizeof(SEND_ROBOT_MOTION_DATA.frame_header));
-    
+
     // 9.初始化地面机器人位置数据
     SEND_GROUND_ROBOT_POSITION_DATA.frame_header.sof = SEND_SOF;
-    SEND_GROUND_ROBOT_POSITION_DATA.frame_header.len =(uint8_t)(sizeof(SendDataGroundRobotPosition_s) - 6);
-    SEND_GROUND_ROBOT_POSITION_DATA.frame_header.id = GROUND_ROBOT_POSITION_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_GROUND_ROBOT_POSITION_DATA.frame_header.len = (uint8_t)(sizeof(SendDataGroundRobotPosition_s) - 6);
+    SEND_GROUND_ROBOT_POSITION_DATA.frame_header.id  = GROUND_ROBOT_POSITION_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_GROUND_ROBOT_POSITION_DATA.frame_header),
         sizeof(SEND_GROUND_ROBOT_POSITION_DATA.frame_header));
 
     // 10.初始化RFID状态数据
     SEND_RFID_STATUS_DATA.frame_header.sof = SEND_SOF;
     SEND_RFID_STATUS_DATA.frame_header.len = (uint8_t)(sizeof(SendDataRfidStatus_s) - 6);
-    SEND_RFID_STATUS_DATA.frame_header.id = RFID_STATUS_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_RFID_STATUS_DATA.frame_header.id  = RFID_STATUS_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_RFID_STATUS_DATA.frame_header),
         sizeof(SEND_RFID_STATUS_DATA.frame_header));
 
     // 11.初始化机器人状态数据
     SEND_ROBOT_STATUS_DATA.frame_header.sof = SEND_SOF;
     SEND_ROBOT_STATUS_DATA.frame_header.len = (uint8_t)(sizeof(SendDataRobotStatus_s) - 6);
-    SEND_ROBOT_STATUS_DATA.frame_header.id = ROBOT_STATUS_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_ROBOT_STATUS_DATA.frame_header.id  = ROBOT_STATUS_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_ROBOT_STATUS_DATA.frame_header),
         sizeof(SEND_ROBOT_STATUS_DATA.frame_header));
-    
+
     // 12.初始化云台状态数据
     SEND_JOINT_STATE_DATA.frame_header.sof = SEND_SOF;
     SEND_JOINT_STATE_DATA.frame_header.len = (uint8_t)(sizeof(SendDataJointState_s) - 6);
-    SEND_JOINT_STATE_DATA.frame_header.id = JOINT_STATE_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_JOINT_STATE_DATA.frame_header.id  = JOINT_STATE_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_JOINT_STATE_DATA.frame_header),
         sizeof(SEND_JOINT_STATE_DATA.frame_header));
 
     // 13.初始化机器人增益和底盘能量数据
     SEND_BUFF_DATA.frame_header.sof = SEND_SOF;
     SEND_BUFF_DATA.frame_header.len = (uint8_t)(sizeof(SendDataBuff_s) - 6);
-    SEND_BUFF_DATA.frame_header.id = BUFF_SEND_ID;
-    append_CRC8_check_sum(  // 添加帧头 CRC8 校验位
+    SEND_BUFF_DATA.frame_header.id  = BUFF_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
         (uint8_t *)(&SEND_BUFF_DATA.frame_header),
         sizeof(SEND_BUFF_DATA.frame_header));
-}   
-
+    //14.初始化遥控数据
+    SEND_DATA_RC.frame_header.sof = SEND_SOF;
+    SEND_DATA_RC.frame_header.len = (uint8_t)(sizeof(SendDataRC_s) - 6);
+    SEND_DATA_RC.frame_header.id  = BUFF_SEND_ID;
+    append_CRC8_check_sum( // 添加帧头 CRC8 校验位
+        (uint8_t *)(&SEND_DATA_RC.frame_header),
+        sizeof(SEND_DATA_RC.frame_header));
+}
 
 /*******************************************************************************/
 /* Send Function                                                               */
 /*******************************************************************************/
 void USB_Transmit(uint8_t *buffer, uint16_t len)
 {
-    USBTransmit(buffer, len);    
+    USBTransmit(buffer, len);
 }
 
 /**
@@ -615,13 +676,13 @@ static void UsbSendImuData(void)
 
     SEND_DATA_IMU.time_stamp = HAL_GetTick();
 
-    SEND_DATA_IMU.data.yaw = IMU->yaw;
+    SEND_DATA_IMU.data.yaw   = IMU->yaw;
     SEND_DATA_IMU.data.pitch = IMU->pitch;
-    SEND_DATA_IMU.data.roll = IMU->roll;
+    SEND_DATA_IMU.data.roll  = IMU->roll;
 
-    SEND_DATA_IMU.data.yaw_vel = IMU->yaw_vel;
+    SEND_DATA_IMU.data.yaw_vel   = IMU->yaw_vel;
     SEND_DATA_IMU.data.pitch_vel = IMU->pitch_vel;
-    SEND_DATA_IMU.data.roll_vel = IMU->roll_vel;
+    SEND_DATA_IMU.data.roll_vel  = IMU->roll_vel;
 
     append_CRC16_check_sum((uint8_t *)&SEND_DATA_IMU, sizeof(SendDataImu_s));
     USB_Transmit((uint8_t *)&SEND_DATA_IMU, sizeof(SendDataImu_s));
@@ -641,7 +702,6 @@ static void UsbSendRobotStateInfoData(void)
     USB_Transmit((uint8_t *)&SEND_DATA_ROBOT_STATE_INFO, sizeof(SendDataRobotStateInfo_s));
 }
 
-
 /**
  * @brief 发送事件数据
  * @param duration 发送周期
@@ -651,6 +711,13 @@ static void UsbSendEventData(void)
     SEND_DATA_EVENT.time_stamp = HAL_GetTick();
     append_CRC16_check_sum((uint8_t *)&SEND_DATA_EVENT, sizeof(SendDataEvent_s));
     USB_Transmit((uint8_t *)&SEND_DATA_EVENT, sizeof(SendDataEvent_s));
+}
+
+static void UsbSendRCData(void)
+{
+    SEND_DATA_RC.time_stamp = HAL_GetTick();
+    append_CRC16_check_sum((uint8_t *)&SEND_DATA_RC, sizeof(SendDataRC_s));
+    USB_Transmit((uint8_t *)&SEND_DATA_RC, sizeof(SendDataRC_s));
 }
 
 /**
@@ -671,20 +738,20 @@ static void UsbSendAllRobotHpData(void)
 {
     SEND_DATA_ALL_ROBOT_HP.time_stamp = HAL_GetTick();
 
-    SEND_DATA_ALL_ROBOT_HP.data.red_1_robot_hp = 1;
-    SEND_DATA_ALL_ROBOT_HP.data.red_2_robot_hp = 2;
-    SEND_DATA_ALL_ROBOT_HP.data.red_3_robot_hp = 3;
-    SEND_DATA_ALL_ROBOT_HP.data.red_4_robot_hp = 4;
-    SEND_DATA_ALL_ROBOT_HP.data.red_7_robot_hp = 7;
-    SEND_DATA_ALL_ROBOT_HP.data.red_outpost_hp = 8;
-    SEND_DATA_ALL_ROBOT_HP.data.red_base_hp = 9;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_1_robot_hp = 1;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_2_robot_hp = 2;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_3_robot_hp = 3;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_4_robot_hp = 4;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_7_robot_hp = 7;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_outpost_hp = 8;
-    SEND_DATA_ALL_ROBOT_HP.data.blue_base_hp = 9;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_1_robot_hp  = 1;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_2_robot_hp  = 2;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_3_robot_hp  = 3;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_4_robot_hp  = 4;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_7_robot_hp  = 7;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_outpost_hp  = 8;
+    // SEND_DATA_ALL_ROBOT_HP.data.red_base_hp     = 9;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_1_robot_hp = 1;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_2_robot_hp = 2;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_3_robot_hp = 3;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_4_robot_hp = 4;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_7_robot_hp = 7;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_outpost_hp = 8;
+    // SEND_DATA_ALL_ROBOT_HP.data.blue_base_hp    = 9;
 
     append_CRC16_check_sum((uint8_t *)&SEND_DATA_ALL_ROBOT_HP, sizeof(SendDataAllRobotHp_s));
     USB_Transmit((uint8_t *)&SEND_DATA_ALL_ROBOT_HP, sizeof(SendDataAllRobotHp_s));
@@ -766,8 +833,8 @@ static void UsbSendRobotStatusData(void)
 static void UsbSendJointStateData(void)
 {
     SEND_JOINT_STATE_DATA.time_stamp = HAL_GetTick();
-    SEND_JOINT_STATE_DATA.data.pitch = 0;//CmdGimbalJointState(AX_PITCH);
-    SEND_JOINT_STATE_DATA.data.yaw = 0;// CmdGimbalJointState(AX_YAW);
+    SEND_JOINT_STATE_DATA.data.pitch = 0; // CmdGimbalJointState(AX_PITCH);
+    SEND_JOINT_STATE_DATA.data.yaw   = 0; // CmdGimbalJointState(AX_YAW);
     append_CRC16_check_sum((uint8_t *)&SEND_JOINT_STATE_DATA, sizeof(SendDataJointState_s));
     USB_Transmit((uint8_t *)&SEND_JOINT_STATE_DATA, sizeof(SendDataJointState_s));
 }
@@ -781,10 +848,8 @@ static void UsbSendBuffData(void)
     SEND_BUFF_DATA.time_stamp = HAL_GetTick();
     append_CRC16_check_sum((uint8_t *)&SEND_BUFF_DATA, sizeof(SendDataBuff_s));
     USB_Transmit((uint8_t *)&SEND_BUFF_DATA, sizeof(SendDataBuff_s));
-    
 }
 
 /*=================================移植发送end==================================*/
 
 #endif
-

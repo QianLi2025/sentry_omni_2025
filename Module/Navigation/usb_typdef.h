@@ -145,6 +145,7 @@ typedef struct
     uint16_t crc;
 } __packed__ SendDataEvent_s;
 
+
 // PID调参数据包
 typedef struct
 {
@@ -339,6 +340,20 @@ typedef struct
 
     uint16_t crc;
 } __packed__ SendDataBuff_s;
+typedef struct
+{
+    FrameHeader_t frame_header;  // 数据段id = 0x0E
+    uint32_t time_stamp;
+
+    struct
+    {
+        int16_t rc_l_;
+        int16_t rc_l1;
+        int16_t rc_r_;
+        int16_t rc_r1;
+    } __packed__ data;
+    uint16_t crc;
+} __packed__ SendDataRC_s;
 /*-------------------- Receive --------------------*/
 typedef struct RobotCmdData
 {
