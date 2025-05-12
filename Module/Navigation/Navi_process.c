@@ -346,7 +346,7 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *navi_usart_handle)
  * @param send 待发送数据
  *
  */
-void NavigationSend(referee_info_t *referee_data,RC_XY rc_data)
+void NavigationSend(referee_info_t *referee_data,RC_XY rc_data,IMU_Send_to_Navi imu_data)
 {
     // static uint8_t send_buff[NAVIGATION_SEND_SIZE];
     // NaviSendProcess(navigation_instance->send_data, send_buff);
@@ -460,6 +460,10 @@ void NavigationSend(referee_info_t *referee_data,RC_XY rc_data)
     SEND_DATA_RC.data.rc_l_ = rc_data.rc_l_;
     SEND_DATA_RC.data.rc_r1 = rc_data.rc_r1;
     SEND_DATA_RC.data.rc_r_ = rc_data.rc_r_;
+    
+    SEND_DATA_IMU.data.yaw=imu_data.yaw;
+    SEND_DATA_IMU.data.pitch=imu_data.pitch;
+    SEND_DATA_IMU.data.roll=0;
     UsbSendData();
 }
 
@@ -670,19 +674,16 @@ static void UsbSendDebugData(void)
  */
 static void UsbSendImuData(void)
 {
-    if (IMU == NULL) {
-        return;
-    }
 
     SEND_DATA_IMU.time_stamp = HAL_GetTick();
 
-    SEND_DATA_IMU.data.yaw   = IMU->yaw;
-    SEND_DATA_IMU.data.pitch = IMU->pitch;
+    SEND_DATA_IMU.data.yaw   = (IMU->yaw*3.14)/180;
+    SEND_DATA_IMU.data.pitch = (IMU->pitch*3.14)/180;
     SEND_DATA_IMU.data.roll  = IMU->roll;
 
-    SEND_DATA_IMU.data.yaw_vel   = IMU->yaw_vel;
-    SEND_DATA_IMU.data.pitch_vel = IMU->pitch_vel;
-    SEND_DATA_IMU.data.roll_vel  = IMU->roll_vel;
+    SEND_DATA_IMU.data.yaw_vel   = 0;//IMU->yaw_vel;
+    SEND_DATA_IMU.data.pitch_vel = 0;//IMU->pitch_vel;
+    SEND_DATA_IMU.data.roll_vel  = 0;//IMU->roll_vel;
 
     append_CRC16_check_sum((uint8_t *)&SEND_DATA_IMU, sizeof(SendDataImu_s));
     USB_Transmit((uint8_t *)&SEND_DATA_IMU, sizeof(SendDataImu_s));

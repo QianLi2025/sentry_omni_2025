@@ -39,7 +39,6 @@
 // 对双板的兼容,条件编译
 #ifdef GIMBAL_BOARD
 #include "UARTComm.h"
-static UARTComm_Instance *gimbal_uart_comm; // 双板通信
 static CAN_Comm_Instance *gimbal_can_comm;
 static CMD_Gimbal_Send_Data_s gimbal_comm_send;
 static CMD_Chassis_Send_Data_s *gimbal_comm_recv;
@@ -77,7 +76,7 @@ static referee_info_t *referee_data;                         // 用于获取裁�
 static Referee_Interactive_info_t ui_data;                   // UI数据，将底盘中的数据传入此结构体的对应变量中，UI会自动检测是否变化，对应显示UI
 static CMD_Gimbal_Send_Data_s *chassis_comm_recv;
 static Navigation_Recv_s *navigation_ctrl; // 视觉控制信息
-static RC_XY rc_xy;
+static IMU_Send_to_Navi imu_send_to_navi;
 
 static Publisher_t *chassis_cmd_pub;   // 底盘控制消息发布者
 static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
@@ -208,16 +207,17 @@ void GimbalCMDSend(void)
     gimbal_comm_send.Chassis_Ctr_Cmd.chassis_mode = chassis_cmd_send.chassis_mode;
     gimbal_comm_send.Chassis_Ctr_Cmd.offset_angle = chassis_cmd_send.offset_angle;
 
-    gimbal_comm_send.Chassis_Ctr_Cmd.rc_l1 = rc_data->rc.rocker_l1;
-    gimbal_comm_send.Chassis_Ctr_Cmd.rc_l_ = rc_data->rc.rocker_l_;
-    gimbal_comm_send.Chassis_Ctr_Cmd.rc_r1 = rc_data->rc.rocker_r1;
-    gimbal_comm_send.Chassis_Ctr_Cmd.rc_r_ = rc_data->rc.rocker_r_;
-    
+    // gimbal_comm_send.Chassis_Ctr_Cmd.rc_l1 = rc_data->rc.rocker_l1;
+    // gimbal_comm_send.Chassis_Ctr_Cmd.rc_l_ = rc_data->rc.rocker_l_;
+    // gimbal_comm_send.Chassis_Ctr_Cmd.rc_r1 = rc_data->rc.rocker_r1;
+    // gimbal_comm_send.Chassis_Ctr_Cmd.rc_r_ = rc_data->rc.rocker_r_;
+
+    gimbal_comm_send.Chassis_Ctr_Cmd.yaw = gimba_IMU_data->Yaw;
+    gimbal_comm_send.Chassis_Ctr_Cmd.pitch = gimba_IMU_data->Pitch;
     if (hibernate_time + dead_time > DWT_GetTimeline_ms())
     return;
     else
     {
-    // UARTCommSend(gimbal_uart_comm,(uint8_t*)&gimbal_comm_send);
     CANCommSend(gimbal_can_comm, (uint8_t *)&gimbal_comm_send);
     hibernate_time = DWT_GetTimeline_ms();     // 记录触发指令的时间
     dead_time      = 1; // 2ms发送一次   
@@ -245,6 +245,7 @@ void GimbalCMDTask(void)
     // chassis_cmd_send.lid_mode      = shoot_cmd_send.lid_mode;
     //发送指令
     GimbalCMDSend();
+    
 }
 
 /**
@@ -300,7 +301,7 @@ static void RemoteControlSet(void)
     chassis_cmd_send.vx = -80.0f * (float)rc_data[TEMP].rc.rocker_l_; // _水平方向
     chassis_cmd_send.vy = -80.0f * (float)rc_data[TEMP].rc.rocker_l1; // 1竖直方向
     if(switch_is_down(rc_data[TEMP].rc.switch_right)){
-        if(rc_data[TEMP].rc.dial>630||rc_data[TEMP].rc.dial<-630)
+        if(rc_data[TEMP].rc.dial>640||rc_data[TEMP].rc.dial<-640)
         chassis_cmd_send.wz = 0;
         else chassis_cmd_send.wz = -50.0f * (float)rc_data[TEMP].rc.dial/2;
     }else if(switch_is_up(rc_data[TEMP].rc.switch_right)){
@@ -326,7 +327,7 @@ static void RemoteControlSet(void)
     if ((switch_is_mid(rc_data[TEMP].rc.switch_left) || switch_is_up(rc_data[TEMP].rc.switch_left)) && vision_ctrl.is_tracking) // 左侧开关状态为[中] / [上],视觉模式
     {
         gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-        gimbal_cmd_send.yaw   = (vision_ctrl.yaw == 0 ? gimbal_cmd_send.yaw : vision_ctrl.yaw);
+        gimbal_cmd_send.yaw   = (vision_ctrl.yaw == 0 ? gimbal_cmd_send.yaw : -vision_ctrl.yaw);
         gimbal_cmd_send.pitch = (vision_ctrl.pitch == 0 ? gimbal_cmd_send.pitch : vision_ctrl.pitch);
     }
     else if(switch_is_up(rc_data[TEMP].rc.switch_right)&&!vision_ctrl.is_tracking){
@@ -380,19 +381,19 @@ static void RemoteControlSet(void)
         shoot_cmd_send.friction_mode = FRICTION_OFF;
     }
     // 拨弹控制,遥控器固定为一种拨弹模式,
+    
    
-   
-    if( shoot_cmd_send.friction_mode == FRICTION_ON){
+    if( shoot_cmd_send.friction_mode == FRICTION_ON ){
 
 
-        if (vision_ctrl.is_shooting == 1 && switch_is_up(rc_data[TEMP].rc.switch_left))
+        if ((vision_ctrl.is_shooting == 1 && switch_is_up(rc_data[TEMP].rc.switch_left))&& shoot_cmd_send.rest_heat >= 20)
         {
             shoot_cmd_send.load_mode = LOAD_MEDIUM;
             shoot_cmd_send.shoot_rate = SHOOT_RATE;
         }   
-    }
-    else
-    shoot_cmd_send.load_mode = LOAD_STOP;
+   
+    else{shoot_cmd_send.load_mode = LOAD_STOP;}
+     }
     // if (vision_ctrl->is_shooting == 0)
     //     shoot_cmd_send.load_mode = LOAD_STOP;
 
@@ -465,7 +466,7 @@ void ChassisCMDGet(void)
     // gimbal_cmd_send.gimbal_imu_data_yaw.Gyro = gimbal_cmd_send.gimbal_imu_data_yaw.Gyro;//cc;
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
-
+    
     // shoot_cmd_send.shoot_rate = chassis_comm_recv->Shoot_Ctr_Cmd.shoot_rate;
     // shoot_cmd_send.load_mode = chassis_comm_recv->Shoot_Ctr_Cmd.load_mode;
     // shoot_cmd_send.is_tracking = chassis_comm_recv->Shoot_Ctr_Cmd.is_tracking;
@@ -485,10 +486,14 @@ void ChassisCMDGet(void)
     chassis_cmd_send.chassis_power_buff = referee_data->PowerHeatData.buffer_energy;
     chassis_cmd_send.chassis_power_limit = referee_data->GameRobotState.chassis_power_limit;
 
-    rc.rc_l1 = chassis_comm_recv->Chassis_Ctr_Cmd.rc_l1;
-    rc.rc_l_ = chassis_comm_recv->Chassis_Ctr_Cmd.rc_l_;
-    rc.rc_r1 = chassis_comm_recv->Chassis_Ctr_Cmd.rc_r1;
-    rc.rc_r_ = chassis_comm_recv->Chassis_Ctr_Cmd.rc_r_;
+    // rc.rc_l1 = chassis_comm_recv->Chassis_Ctr_Cmd.rc_l1;
+    // rc.rc_l_ = chassis_comm_recv->Chassis_Ctr_Cmd.rc_l_;
+    // rc.rc_r1 = chassis_comm_recv->Chassis_Ctr_Cmd.rc_r1;
+    // rc.rc_r_ = chassis_comm_recv->Chassis_Ctr_Cmd.rc_r_;
+
+    imu_send_to_navi.yaw=  chassis_cmd_send.yaw;
+    imu_send_to_navi.pitch = chassis_cmd_send.pitch;
+    imu_send_to_navi.roll = 0;
     //TODO：发射，云台，Robot 状态反馈
 }
 
@@ -547,15 +552,17 @@ void ChassisCMDTask(void)
     }
     else if (chassis_cmd_send.chassis_mode == CHASSIS_NAV) //导航与遥控混合控制 ATTENTION：此处各个if的先后顺序极其重要！谨慎修改！
     {
-
+        if((navigation_ctrl->wz>10||navigation_ctrl->wz<-10)){navigation_ctrl->wz=0;}
+        if((navigation_ctrl->wz>-0.2&&navigation_ctrl->wz<0.2)){navigation_ctrl->wz=0;}
        if(navigation_ctrl->vx != 0 || navigation_ctrl->vy != 0||navigation_ctrl->wz !=0) //&& referee_data->GameState.game_progress == 4)  //导航控制
         {
+        
             //TODO:game progress限制待添加
             chassis_cmd_send.vx = navigation_ctrl->vx * NAV_K;
             chassis_cmd_send.vy = navigation_ctrl->vy * NAV_K;
             chassis_cmd_send.wz = -navigation_ctrl->wz * NAV_K*0.5;
             chassis_cmd_send.offset_angle = NAV_OFFSET_ANGLE;
-            if(navigation_ctrl->wz>10||navigation_ctrl->wz<-10){chassis_cmd_send.wz=0;}
+
 
         }
         // else{
@@ -576,7 +583,7 @@ void ChassisCMDTask(void)
     }
 
     ChassisCMDSend();
-    NavigationSend(referee_data,rc);
+    NavigationSend(referee_data,rc,imu_send_to_navi);
 }
 #endif
 

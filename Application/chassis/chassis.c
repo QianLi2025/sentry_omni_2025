@@ -155,9 +155,7 @@ static void MecanumCalculate()
  *
  */
 
-// static void Motor_Speed_limiting()
-// {
-// }
+
 int w_watch;
 /**
  * @brief

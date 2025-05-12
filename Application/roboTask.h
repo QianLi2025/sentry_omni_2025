@@ -54,8 +54,8 @@ void OSTaskInit(void)
     visioncomTaskHandle = osThreadCreate(osThread(visioncomtask), NULL); 
 #endif
 
-    osThreadDef(instask, StartINSTASK, osPriorityRealtime, 0, 1024);
-    insTaskHandle = osThreadCreate(osThread(instask), NULL); // 由于是阻塞读取传感器,为姿态解算设置较高优先级,确保以1khz的频率执行
+   osThreadDef(instask, StartINSTASK, osPriorityRealtime, 0, 1024);
+   insTaskHandle = osThreadCreate(osThread(instask), NULL); // 由于是阻塞读取传感器,为姿态解算设置较高优先级,确保以1khz的频率执行
 
     osThreadDef(motortask, StartMOTORTASK, osPriorityNormal, 0, 512);
     motorTaskHandle = osThreadCreate(osThread(motortask), NULL);

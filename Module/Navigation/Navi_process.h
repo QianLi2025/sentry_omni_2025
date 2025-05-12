@@ -200,7 +200,7 @@ Navigation_Recv_s *NavigationInit(UART_HandleTypeDef *video_usart_handle);
  *
  *
  */
-void NavigationSend(referee_info_t *referee_data,RC_XY rc_data);
+void NavigationSend(referee_info_t *referee_data,RC_XY rc_data,IMU_Send_to_Navi imu_data);
 
 // /**
 //  * @brief

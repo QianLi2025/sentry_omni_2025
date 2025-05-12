@@ -78,7 +78,7 @@ void ShootInit()
                 .Kd                = 0,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ErrorHandle,
                 .IntegralLimit     = 10000,
-                .MaxOut            = 15000,
+                .MaxOut            = 10000,
                 .Derivative_LPF_RC = 0.01,
             },
             .speed_PID = {
@@ -87,7 +87,7 @@ void ShootInit()
                 .Kd            = 0,
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 10000,
-                .MaxOut        = 15000,
+                .MaxOut        = 10000,
             },
             .current_PID = {
                 .Kp            = 0.7, // 0.7
@@ -137,7 +137,7 @@ void ShootTask()
         return;
 
     //堵转检测
-    if(loader->measure.real_current>13000){
+    if(loader->measure.real_current>7500){
         shoot_cmd_recv.load_mode = LOAD_REVERSE;
         hibernate_time = DWT_GetTimeline_ms();
         dead_time = 200;    
@@ -178,7 +178,7 @@ void ShootTask()
         // 也有可能需要从switch-case中独立出来
         case LOAD_REVERSE:
             DJIMotorOuterLoop(loader, SPEED_LOOP);
-            DJIMotorSetRef(loader, shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / 16);
+            DJIMotorSetRef(loader, -shoot_cmd_recv.shoot_rate * 360 * REDUCTION_RATIO_LOADER / 10.0f);
             // ...
             break;
         default:
